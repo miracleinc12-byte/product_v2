@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface TrendItem {
   keyword: string;
@@ -25,8 +26,10 @@ interface MaskedSetting {
 }
 
 const CATEGORY_OPTIONS = ["정치", "경제", "사회", "국제", "IT/과학", "문화/연예", "스포츠", "라이프"];
+const DEFAULT_ARTICLE_TYPE = "news-analysis";
 
 export default function TrendingLivePage() {
+  const router = useRouter();
   const [adminSecret, setAdminSecret] = useState("");
   const [authed, setAuthed] = useState(false);
   const [naverApiReady, setNaverApiReady] = useState(false);
@@ -38,6 +41,21 @@ export default function TrendingLivePage() {
   const [loadingTrends, setLoadingTrends] = useState(false);
   const [loadingArticles, setLoadingArticles] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const openWriter = (article: TrendArticle, category: string) => {
+    sessionStorage.setItem(
+      "admin_draft_source",
+      JSON.stringify({
+        category,
+        articleType: DEFAULT_ARTICLE_TYPE,
+        referenceUrl: article.url,
+        sourceTitle: article.title,
+        sourceDescription: article.description,
+        sourceName: article.source?.name,
+      })
+    );
+    router.push("/admin");
+  };
 
   const loadSettings = useCallback(async (secret: string) => {
     const response = await fetch("/api/settings", {
@@ -290,10 +308,14 @@ export default function TrendingLivePage() {
           <div className="p-4 space-y-3 min-h-[640px]">
             {viewMode === "trend" && selectedTrend?.newsTitle && selectedTrend.newsUrl && (
               <article className="rounded-xl border border-blue-100 dark:border-blue-800 bg-blue-50/60 dark:bg-blue-950/20 p-4">
-                <div className="text-xs font-semibold text-blue-700 dark:text-blue-300 mb-2">선택 키워드 대표 기사</div>
-                <a href={selectedTrend.newsUrl} target="_blank" rel="noopener noreferrer" className="block text-sm font-semibold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 leading-6">
-                  {selectedTrend.newsTitle}
-                </a>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-xs font-semibold text-blue-700 dark:text-blue-300 mb-2">선택 키워드 대표 기사</div>
+                    <a href={selectedTrend.newsUrl} target="_blank" rel="noopener noreferrer" className="block text-sm font-semibold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 leading-6">
+                      {selectedTrend.newsTitle}
+                    </a>
+                  </div>
+                </div>
               </article>
             )}
 
@@ -317,6 +339,23 @@ export default function TrendingLivePage() {
                 {article.description && (
                   <p className="mt-2 text-sm text-gray-600 dark:text-gray-300 leading-6 line-clamp-3">{article.description}</p>
                 )}
+                <div className="mt-4 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openWriter(article, viewMode === "trend" && selectedTrend ? selectedTrend.category : selectedCategory)}
+                    className="px-3 py-2 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+                  >
+                    작성
+                  </button>
+                  <a
+                    href={article.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-2 text-xs font-semibold rounded-lg border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    원문 보기
+                  </a>
+                </div>
               </article>
             ))}
           </div>

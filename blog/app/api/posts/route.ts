@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
@@ -24,6 +24,8 @@ export async function GET(req: NextRequest) {
         slug: true,
         summary: true,
         category: true,
+        articleType: true,
+        referenceUrl: true,
         tags: true,
         thumbnail: true,
         createdAt: true,
@@ -42,9 +44,9 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { title, slug, content, summary, category, tags, thumbnail, published } = body;
+  const { title, slug, content, summary, category, articleType, referenceUrl, tags, thumbnail, published } = body;
 
-  if (!title || !slug || !content || !summary || !category) {
+  if (!title || !slug || !content || !summary || !category || !articleType) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
@@ -56,6 +58,8 @@ export async function POST(req: NextRequest) {
       content,
       summary,
       category,
+      articleType,
+      referenceUrl: referenceUrl || null,
       tags: tags ?? "",
       thumbnail,
       published: isPublished,
