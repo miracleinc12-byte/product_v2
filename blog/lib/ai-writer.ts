@@ -17,6 +17,12 @@ export interface SeoRewriteInput {
   sourceName?: string;
 }
 
+export interface SeoRewriteOptions {
+  provider: "gemini" | "openai";
+  apiKey: string;
+  articleLength?: number;
+}
+
 export interface SeoRewriteResult extends GeneratedPost {
   seoTitle: string;
   seoDescription: string;
@@ -34,12 +40,83 @@ function extractJson<T>(fullText: string): T {
     try {
       return JSON.parse(jsonMatch[0]) as T;
     } catch {
-      const fixed = jsonMatch[0].replace(/(?<=:\s*")([\s\S]*?)(?="\s*[,}])/g, (match) =>
-        match.replace(/(?<!\\)"/g, '\\"').replace(/\n/g, "\\n")
-      );
+      const fixed = jsonMatch[0]
+        .replace(/(?<=:\s*")([\s\S]*?)(?="\s*[,}])/g, (match) => match.replace(/(?<!\\)"/g, '\\"').replace(/\n/g, "\\n"));
       return JSON.parse(fixed) as T;
     }
   }
+}
+
+async function callGemini(prompt: string, apiKey: string) {
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.6,
+          maxOutputTokens: 16384,
+          responseMimeType: "application/json",
+          thinkingConfig: { thinkingBudget: 1024 },
+        },
+      }),
+    }
+  );
+
+  const data = (await response.json()) as {
+    candidates?: { content: { parts: { text?: string; thought?: boolean }[] } }[];
+    error?: { message: string };
+  };
+
+  if (data.error) throw new Error(`Gemini error: ${data.error.message}`);
+  const parts = data.candidates?.[0]?.content?.parts ?? [];
+  const fullText = parts.filter((part) => part.text && !part.thought).map((part) => part.text!).join("");
+  if (!fullText) throw new Error("Gemini response was empty");
+  return fullText;
+}
+
+async function callOpenAI(prompt: string, apiKey: string) {
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: "gpt-4.1-mini",
+      temperature: 0.6,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: "You are a Korean SEO newsroom editor. Return valid JSON only.",
+        },
+        { role: "user", content: prompt },
+      ],
+    }),
+  });
+
+  const data = (await response.json()) as {
+    choices?: { message?: { content?: string } }[];
+    error?: { message?: string };
+  };
+
+  if (!response.ok) {
+    throw new Error(data.error?.message ?? `OpenAI error: ${response.status}`);
+  }
+
+  const fullText = data.choices?.[0]?.message?.content ?? "";
+  if (!fullText) throw new Error("OpenAI response was empty");
+  return fullText;
+}
+
+async function callModel(prompt: string, options: SeoRewriteOptions) {
+  if (options.provider === "openai") {
+    return callOpenAI(prompt, options.apiKey);
+  }
+  return callGemini(prompt, options.apiKey);
 }
 
 export async function generateArticle(
@@ -85,57 +162,22 @@ Return JSON only:
   "tags": "tag1, tag2, tag3"
 }`;
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 16384,
-          responseMimeType: "application/json",
-          thinkingConfig: { thinkingBudget: 1024 },
-        },
-      }),
-    }
-  );
-
-  const data = (await response.json()) as {
-    candidates?: { content: { parts: { text?: string; thought?: boolean }[] } }[];
-    error?: { message: string };
-  };
-
-  if (data.error) throw new Error(`Gemini error: ${data.error.message}`);
-
-  const parts = data.candidates?.[0]?.content?.parts ?? [];
-  const fullText = parts.filter((part) => part.text && !part.thought).map((part) => part.text!).join("");
-  if (!fullText) {
-    throw new Error("Gemini response was empty");
-  }
-
+  const fullText = await callGemini(prompt, key);
   const parsed = extractJson<GeneratedPost>(fullText);
-  if (!parsed.title || !parsed.content) {
-    throw new Error("Gemini response is missing required fields");
-  }
-
+  if (!parsed.title || !parsed.content) throw new Error("Gemini response is missing required fields");
   return parsed;
 }
 
-export async function rewriteArticleForSeo(
-  input: SeoRewriteInput,
-  apiKey?: string,
-  articleLength: number = 2200
-): Promise<SeoRewriteResult> {
-  const key = apiKey || process.env.GEMINI_API_KEY;
-  if (!key) throw new Error("GEMINI_API_KEY is not configured. Please set it in admin settings.");
+export async function rewriteArticleForSeo(input: SeoRewriteInput, options: SeoRewriteOptions): Promise<SeoRewriteResult> {
+  if (!options.apiKey) throw new Error("Selected AI provider API key is not configured.");
 
+  const articleLength = options.articleLength ?? 2200;
   const minLen = articleLength;
   const maxLen = Math.round(articleLength * 1.2);
-  const prompt = `You are a Korean SEO editor for both Google SEO and Naver SEO.
+
+  const prompt = `You are a Korean SEO editor working for both Google SEO and Naver SEO.
 Rewrite the referenced news into an original Korean article for a personal blog.
-Do not translate literally. Do not copy the original wording. Keep facts accurate.
+Do not translate literally and do not copy source phrasing.
 
 [Article Info]
 Category: ${input.category}
@@ -147,15 +189,16 @@ Source Name: ${input.sourceName ?? "External news source"}
 Reference URL: ${input.referenceUrl ?? ""}
 
 [SEO Requirements]
-1. Write a Google SEO and Naver SEO friendly title that is natural, specific, and contains the core keyword.
-2. Write an SEO summary of 2-3 sentences that can be used as both meta description and preview text.
-3. The body must be original Markdown, roughly ${minLen}-${maxLen} characters, structured with ## and ### headings.
-4. The first paragraph should clarify the main keyword and why the topic matters today.
-5. Include fact summary, background, implications, and a short reader takeaway section.
-6. Avoid keyword stuffing, sensational claims, and verbatim copying from the source.
-7. Provide 4-6 tags.
-8. Create a separate SEO title and SEO description optimized for search snippets.
-9. Do not output the reference URL inside the article body.
+1. Write a natural Korean title optimized for both Google SEO and Naver SEO.
+2. Write a 2-3 sentence summary that also works as a search snippet.
+3. Write an original Markdown article of roughly ${minLen}-${maxLen} characters.
+4. Use ## and ### headings.
+5. Open with why this topic matters today.
+6. Include fact summary, background, implications, and a short takeaway section.
+7. Avoid keyword stuffing and sensational language.
+8. Provide 4-6 tags.
+9. Create a separate seoTitle and seoDescription.
+10. Do not print the reference URL inside the article body.
 
 Return JSON only:
 {
@@ -167,39 +210,10 @@ Return JSON only:
   "seoDescription": "seo description"
 }`;
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.6,
-          maxOutputTokens: 16384,
-          responseMimeType: "application/json",
-          thinkingConfig: { thinkingBudget: 1024 },
-        },
-      }),
-    }
-  );
-
-  const data = (await response.json()) as {
-    candidates?: { content: { parts: { text?: string; thought?: boolean }[] } }[];
-    error?: { message: string };
-  };
-
-  if (data.error) throw new Error(`Gemini error: ${data.error.message}`);
-
-  const parts = data.candidates?.[0]?.content?.parts ?? [];
-  const fullText = parts.filter((part) => part.text && !part.thought).map((part) => part.text!).join("");
-  if (!fullText) {
-    throw new Error("Gemini response was empty");
-  }
-
+  const fullText = await callModel(prompt, options);
   const parsed = extractJson<SeoRewriteResult>(fullText);
   if (!parsed.title || !parsed.summary || !parsed.content) {
-    throw new Error("Gemini response is missing required fields");
+    throw new Error("AI response is missing required fields");
   }
 
   return {
@@ -234,11 +248,8 @@ export function insertImages(content: string, images: string[]): string {
   }
 
   insertPoints.sort((a, b) => b - a);
-
   for (let index = 0; index < insertPoints.length && index < images.length; index++) {
-    const insertIndex = insertPoints[index];
-    const imgTag = `\n![기사 이미지](${images[index]})\n`;
-    lines.splice(insertIndex, 0, imgTag);
+    lines.splice(insertPoints[index], 0, `\n![기사 이미지](${images[index]})\n`);
   }
 
   return lines.join("\n");

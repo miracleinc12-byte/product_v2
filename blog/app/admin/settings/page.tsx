@@ -21,15 +21,23 @@ const SETTING_CONFIGS: SettingInfo[] = [
   {
     key: "GEMINI_API_KEY",
     label: "Google Gemini API Key",
-    description: "AI 기사 생성을 위한 키입니다.",
+    description: "Gemini로 기사 초안과 자동 생성 글을 만들 때 사용합니다.",
     link: "https://aistudio.google.com/app/apikey",
     linkLabel: "Google AI Studio에서 발급",
     placeholder: "AIza...",
   },
   {
+    key: "OPENAI_API_KEY",
+    label: "OpenAI API Key",
+    description: "ChatGPT 기반 기사 초안 생성에 사용합니다.",
+    link: "https://platform.openai.com/api-keys",
+    linkLabel: "OpenAI Platform에서 발급",
+    placeholder: "sk-...",
+  },
+  {
     key: "NEWS_API_KEY",
     label: "NewsAPI Key",
-    description: "실시간 뉴스와 트렌드 기사 검색에 사용합니다.",
+    description: "자동 기사 생성 시 외부 뉴스 검색에 사용합니다.",
     link: "https://newsapi.org/register",
     linkLabel: "NewsAPI에서 발급",
     placeholder: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
@@ -37,7 +45,7 @@ const SETTING_CONFIGS: SettingInfo[] = [
   {
     key: "NAVER_CLIENT_ID",
     label: "Naver Client ID",
-    description: "네이버 검색/뉴스 API 호출에 사용하는 클라이언트 ID입니다.",
+    description: "네이버 검색/뉴스 API 호출에 사용하는 Client ID입니다.",
     link: "https://developers.naver.com/apps/#/register",
     linkLabel: "네이버 개발자센터에서 발급",
     placeholder: "xxxxxxxxxx",
@@ -45,7 +53,7 @@ const SETTING_CONFIGS: SettingInfo[] = [
   {
     key: "NAVER_CLIENT_SECRET",
     label: "Naver Client Secret",
-    description: "네이버 API 인증에 사용하는 클라이언트 시크릿입니다.",
+    description: "네이버 API 인증에 사용하는 Client Secret입니다.",
     link: "https://developers.naver.com/apps/#/register",
     linkLabel: "네이버 개발자센터에서 발급",
     placeholder: "xxxxxxxxxxxx",
@@ -53,7 +61,7 @@ const SETTING_CONFIGS: SettingInfo[] = [
   {
     key: "FAL_KEY",
     label: "fal.ai API Key",
-    description: "기사 썸네일 이미지 생성에 사용합니다.",
+    description: "이미지 생성/확장 기능에 사용할 수 있는 키입니다.",
     link: "https://fal.ai/dashboard/keys",
     linkLabel: "fal.ai에서 발급",
     placeholder: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx:xxxx",
@@ -77,10 +85,10 @@ const SETTING_CONFIGS: SettingInfo[] = [
   {
     key: "ARTICLE_LENGTH",
     label: "기사 글자 수",
-    description: "AI가 생성할 기사 길이의 기준값입니다.",
+    description: "AI가 생성할 기사 길이 기준값입니다.",
     link: "",
     linkLabel: "",
-    placeholder: "2000",
+    placeholder: "2200",
   },
 ];
 
@@ -100,17 +108,17 @@ export default function SettingsPage() {
     setFetchLoading(true);
     setMessage(null);
     try {
-      const res = await fetch("/api/settings", {
+      const response = await fetch("/api/settings", {
         headers: { "x-admin-secret": secret },
       });
 
-      if (!res.ok) {
+      if (!response.ok) {
         setMessage({ type: "error", text: "관리자 인증에 실패했습니다. 비밀번호를 다시 확인해 주세요." });
         setAuthed(false);
         return;
       }
 
-      const data = (await res.json()) as { settings: Record<string, MaskedSetting> };
+      const data = (await response.json()) as { settings: Record<string, MaskedSetting> };
       setCurrentSettings(data.settings);
     } catch {
       setMessage({ type: "error", text: "설정 정보를 불러오지 못했습니다." });
@@ -127,20 +135,20 @@ export default function SettingsPage() {
     void loadSettings(saved);
   }, [loadSettings]);
 
-  const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAuth = async (event: React.FormEvent) => {
+    event.preventDefault();
     localStorage.setItem("admin_secret", adminSecret);
     setAuthed(true);
     await loadSettings(adminSecret);
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = async (event: React.FormEvent) => {
+    event.preventDefault();
     setLoading(true);
     setMessage(null);
 
     try {
-      const res = await fetch("/api/settings", {
+      const response = await fetch("/api/settings", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -149,8 +157,8 @@ export default function SettingsPage() {
         body: JSON.stringify(formValues),
       });
 
-      const data = (await res.json()) as { success?: boolean; saved?: string[]; error?: string };
-      if (!res.ok || !data.success) {
+      const data = (await response.json()) as { success?: boolean; saved?: string[]; error?: string };
+      if (!response.ok || !data.success) {
         setMessage({ type: "error", text: data.error ?? "설정 저장에 실패했습니다." });
         return;
       }
@@ -182,13 +190,13 @@ export default function SettingsPage() {
     return (
       <div className="max-w-sm mx-auto mt-20">
         <h1 className="text-2xl font-extrabold text-[var(--nyt-black)] mb-6 text-center">관리자 로그인</h1>
-        <form onSubmit={handleAuth} className="bg-[var(--nyt-paper)] dark:bg-[var(--nyt-paper)] rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+        <form onSubmit={handleAuth} className="bg-[var(--nyt-paper)] rounded-xl p-6 border border-[var(--nyt-border)] shadow-sm">
           <input
             type="password"
             value={adminSecret}
-            onChange={(e) => setAdminSecret(e.target.value)}
+            onChange={(event) => setAdminSecret(event.target.value)}
             placeholder="관리자 시크릿"
-            className="w-full px-4 py-2 mb-4 rounded-lg border border-[var(--nyt-border)] bg-[var(--nyt-bg)] dark:bg-[var(--nyt-bg)] text-[var(--nyt-black)] focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-2 mb-4 rounded-lg border border-[var(--nyt-border)] bg-[var(--nyt-bg)] text-[var(--nyt-black)] focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <button type="submit" className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">
             로그인
@@ -206,16 +214,16 @@ export default function SettingsPage() {
           <p className="text-sm text-[var(--nyt-gray)] mt-1">기사 생성과 자동 게시에 필요한 키를 관리합니다.</p>
         </div>
         <div className="flex items-center gap-3">
-          <Link href="/admin/trending-live" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">트렌드 실시간 보기</Link>
-          <Link href="/admin" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">글 작성으로 돌아가기</Link>
+          <Link href="/admin/trending-live" className="text-sm text-blue-700 hover:underline">트렌드 실시간 보기</Link>
+          <Link href="/admin" className="text-sm text-blue-700 hover:underline">글 작성으로 돌아가기</Link>
         </div>
       </div>
 
       {message && (
         <div className={`p-4 rounded-xl text-sm font-medium ${
           message.type === "success"
-            ? "bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800"
-            : "bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800"
+            ? "bg-green-50 text-green-700 border border-green-200"
+            : "bg-red-50 text-red-700 border border-red-200"
         }`}>
           {message.text}
         </div>
@@ -230,22 +238,20 @@ export default function SettingsPage() {
             const isSet = current?.set ?? false;
 
             return (
-              <div key={cfg.key} className="bg-[var(--nyt-paper)] dark:bg-[var(--nyt-paper)] rounded-xl border border-[var(--nyt-border)] p-5">
+              <div key={cfg.key} className="bg-[var(--nyt-paper)] rounded-xl border border-[var(--nyt-border)] p-5">
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <div>
                     <div className="flex items-center gap-2">
                       <h3 className="font-semibold text-[var(--nyt-black)] text-sm">{cfg.label}</h3>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                        isSet
-                          ? "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400"
-                          : "bg-gray-100 dark:bg-gray-700 text-[var(--nyt-light)]"
+                        isSet ? "bg-green-100 text-green-700" : "bg-gray-200 text-[var(--nyt-gray)]"
                       }`}>
                         {isSet ? "설정됨" : "미설정"}
                       </span>
                     </div>
                     <p className="text-xs text-[var(--nyt-light)] mt-1">{cfg.description}</p>
                     {cfg.link && (
-                      <a href={cfg.link} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 dark:text-blue-400 hover:underline mt-1 inline-block">
+                      <a href={cfg.link} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-700 hover:underline mt-1 inline-block">
                         {cfg.linkLabel}
                       </a>
                     )}
@@ -254,7 +260,7 @@ export default function SettingsPage() {
                     <button
                       type="button"
                       onClick={() => handleDelete(cfg.key)}
-                      className="text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 shrink-0"
+                      className="text-xs text-red-600 hover:text-red-700 shrink-0"
                     >
                       삭제
                     </button>
@@ -262,13 +268,13 @@ export default function SettingsPage() {
                 </div>
 
                 {isSet && (
-                  <div className="mb-3 flex items-center gap-2 bg-[var(--nyt-bg)] dark:bg-[var(--nyt-bg)]/50 rounded-lg px-3 py-2">
+                  <div className="mb-3 flex items-center gap-2 bg-[var(--nyt-bg)] rounded-lg px-3 py-2">
                     <code className="text-xs text-[var(--nyt-gray)] flex-1 font-mono break-all">
                       {showValues[cfg.key] ? formValues[cfg.key] || current.masked : current.masked}
                     </code>
                     <button
                       type="button"
-                      onClick={() => setShowValues((s) => ({ ...s, [cfg.key]: !s[cfg.key] }))}
+                      onClick={() => setShowValues((state) => ({ ...state, [cfg.key]: !state[cfg.key] }))}
                       className="text-xs text-[var(--nyt-light)] hover:text-[var(--nyt-black)]"
                     >
                       {showValues[cfg.key] ? "숨기기" : "보기"}
@@ -279,9 +285,9 @@ export default function SettingsPage() {
                 <input
                   type="text"
                   value={formValues[cfg.key] ?? ""}
-                  onChange={(e) => setFormValues((f) => ({ ...f, [cfg.key]: e.target.value }))}
+                  onChange={(event) => setFormValues((state) => ({ ...state, [cfg.key]: event.target.value }))}
                   placeholder={isSet ? "새 값으로 변경하려면 입력" : cfg.placeholder}
-                  className="w-full px-3 py-2 rounded-lg border border-[var(--nyt-border)] bg-[var(--nyt-bg)] dark:bg-[var(--nyt-bg)] text-[var(--nyt-black)] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                  className="w-full px-3 py-2 rounded-lg border border-[var(--nyt-border)] bg-[var(--nyt-bg)] text-[var(--nyt-black)] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
                 />
               </div>
             );
@@ -290,7 +296,7 @@ export default function SettingsPage() {
           <div className="flex justify-end pt-2">
             <button
               type="submit"
-              disabled={loading || Object.values(formValues).every((v) => !v)}
+              disabled={loading || Object.values(formValues).every((value) => !value)}
               className="px-8 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-medium rounded-lg transition-colors"
             >
               {loading ? "저장 중..." : "설정 저장"}
@@ -299,7 +305,7 @@ export default function SettingsPage() {
         </form>
       )}
 
-      <div className="bg-[var(--nyt-paper)] dark:bg-[var(--nyt-paper)] rounded-xl border border-[var(--nyt-border)] p-5">
+      <div className="bg-[var(--nyt-paper)] rounded-xl border border-[var(--nyt-border)] p-5">
         <h3 className="font-semibold text-[var(--nyt-black)] text-sm mb-2">자동 게시 테스트</h3>
         <p className="text-xs text-[var(--nyt-light)] mb-4">설정을 저장한 뒤 선택한 카테고리로 자동 게시 API를 바로 시험할 수 있습니다.</p>
         <AutoPostTester adminSecret={adminSecret} />
@@ -356,8 +362,8 @@ function AutoPostTester({ adminSecret }: { adminSecret: string }) {
     <div className="flex flex-col sm:flex-row sm:items-center gap-3">
       <select
         value={category}
-        onChange={(e) => setCategory(e.target.value)}
-        className="px-3 py-2 rounded-lg border border-[var(--nyt-border)] bg-[var(--nyt-bg)] dark:bg-[var(--nyt-bg)] text-[var(--nyt-black)] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        onChange={(event) => setCategory(event.target.value)}
+        className="px-3 py-2 rounded-lg border border-[var(--nyt-border)] bg-[var(--nyt-bg)] text-[var(--nyt-black)] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
       >
         {TEST_CATEGORIES.map((item) => (
           <option key={item} value={item}>{item}</option>
@@ -372,7 +378,7 @@ function AutoPostTester({ adminSecret }: { adminSecret: string }) {
         {running ? "실행 중..." : "테스트 실행"}
       </button>
       {result && (
-        <span className={`text-xs font-medium ${result.startsWith("오류") ? "text-red-500" : "text-green-600 dark:text-green-400"}`}>
+        <span className={`text-xs font-medium ${result.startsWith("오류") ? "text-red-500" : "text-green-600"}`}>
           {result}
         </span>
       )}
