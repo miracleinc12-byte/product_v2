@@ -74,7 +74,7 @@ export default function AdminPostsPage() {
     <div className="max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h1 className="font-serif text-2xl font-black text-[var(--nyt-black)]">기사 관리</h1>
-        <span className="text-sm font-sans text-[var(--nyt-light)]">총 {total}개</span>
+        <span className="text-sm font-sans text-[var(--nyt-gray)]">총 {total}개</span>
       </div>
 
       <div className="flex items-center gap-3 mb-4">
@@ -100,7 +100,7 @@ export default function AdminPostsPage() {
       </div>
 
       <div className="border border-[var(--nyt-border)] bg-[var(--nyt-bg)]">
-        <div className="grid grid-cols-12 gap-2 px-4 py-2 border-b border-[var(--nyt-border)] bg-[var(--nyt-bg-accent)] text-[11px] font-sans font-bold uppercase tracking-wider text-[var(--nyt-light)]">
+        <div className="grid grid-cols-12 gap-2 px-4 py-2 border-b border-[var(--nyt-border)] bg-[var(--nyt-bg-accent)] text-[11px] font-sans font-bold uppercase tracking-wider text-[var(--nyt-gray)]">
           <div className="col-span-1">
             <input type="checkbox" checked={selected.size === posts.length && posts.length > 0} onChange={toggleAll} />
           </div>
@@ -112,9 +112,9 @@ export default function AdminPostsPage() {
         </div>
 
         {loading ? (
-          <div className="p-8 text-center text-sm font-sans text-[var(--nyt-light)]">로딩 중...</div>
+          <div className="p-8 text-center text-sm font-sans text-[var(--nyt-gray)]">로딩 중...</div>
         ) : posts.length === 0 ? (
-          <div className="p-8 text-center text-sm font-sans text-[var(--nyt-light)]">기사가 없습니다</div>
+          <div className="p-8 text-center text-sm font-sans text-[var(--nyt-gray)]">기사가 없습니다</div>
         ) : (
           posts.map((post) => (
             <div
@@ -136,7 +136,7 @@ export default function AdminPostsPage() {
               <div className="col-span-1 text-center flex items-center justify-center">
                 <span className={`inline-block w-2 h-2 rounded-full ${post.published ? "bg-green-500" : "bg-gray-400"}`} />
               </div>
-              <div className="col-span-2 text-[var(--nyt-light)] text-xs flex items-center">
+              <div className="col-span-2 text-[var(--nyt-gray)] text-xs flex items-center">
                 {new Date(post.createdAt).toLocaleDateString("ko-KR")}
               </div>
             </div>

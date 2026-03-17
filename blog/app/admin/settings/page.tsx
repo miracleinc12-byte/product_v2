@@ -203,7 +203,7 @@ export default function SettingsPage() {
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white">API 및 운영 설정</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">기사 생성과 자동 게시에 필요한 키를 관리합니다.</p>
+          <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">기사 생성과 자동 게시에 필요한 키를 관리합니다.</p>
         </div>
         <div className="flex items-center gap-3">
           <Link href="/admin/trending-live" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">트렌드 실시간 보기</Link>
@@ -222,7 +222,7 @@ export default function SettingsPage() {
       )}
 
       {fetchLoading ? (
-        <div className="text-center py-12 text-gray-400">설정을 불러오는 중입니다...</div>
+        <div className="text-center py-12 text-gray-600 dark:text-gray-300">설정을 불러오는 중입니다...</div>
       ) : (
         <form onSubmit={handleSave} className="space-y-4">
           {SETTING_CONFIGS.map((cfg) => {

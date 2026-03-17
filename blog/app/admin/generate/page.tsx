@@ -138,7 +138,7 @@ export default function AdminGeneratePage() {
       {logs.length > 0 && (
         <div className="border border-[var(--nyt-border)] bg-[var(--nyt-bg)] max-h-[500px] overflow-y-auto">
           <div className="p-3 border-b border-[var(--nyt-border)] bg-[var(--nyt-bg-accent)]">
-            <h3 className="font-sans text-xs font-bold uppercase tracking-wider text-[var(--nyt-light)]">생성 로그</h3>
+            <h3 className="font-sans text-xs font-bold uppercase tracking-wider text-[var(--nyt-gray)]">생성 로그</h3>
           </div>
           <div className="p-3 space-y-1 font-mono text-xs">
             {logs.map((entry, i) => (
@@ -154,7 +154,7 @@ export default function AdminGeneratePage() {
                 {entry.type === "progress" && (
                   <span className="text-[var(--nyt-gray)]">
                     &nbsp;&nbsp;↳ {entry.step}
-                    {entry.source && <span className="text-[var(--nyt-light)]"> ({entry.source})</span>}
+                    {entry.source && <span className="text-[var(--nyt-gray)]"> ({entry.source})</span>}
                   </span>
                 )}
                 {entry.type === "category_done" && (

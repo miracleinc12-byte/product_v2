@@ -199,7 +199,7 @@ export default function AdminPage() {
       <div className="flex items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white">기사 작성</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">트렌드 화면에서 가져온 기사도 여기서 SEO 초안으로 편집할 수 있습니다.</p>
+          <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">트렌드 화면에서 가져온 기사도 여기서 SEO 초안으로 편집할 수 있습니다.</p>
         </div>
         {draftLoading && <span className="text-sm text-blue-600 dark:text-blue-400">SEO 초안 생성 중...</span>}
       </div>
