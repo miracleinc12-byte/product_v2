@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
@@ -33,6 +33,22 @@ const SETTING_CONFIGS: SettingInfo[] = [
     link: "https://newsapi.org/register",
     linkLabel: "NewsAPI에서 발급",
     placeholder: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  },
+  {
+    key: "NAVER_CLIENT_ID",
+    label: "Naver Client ID",
+    description: "네이버 검색/뉴스 API 호출에 사용하는 클라이언트 ID입니다.",
+    link: "https://developers.naver.com/apps/#/register",
+    linkLabel: "네이버 개발자센터에서 발급",
+    placeholder: "xxxxxxxxxx",
+  },
+  {
+    key: "NAVER_CLIENT_SECRET",
+    label: "Naver Client Secret",
+    description: "네이버 API 인증에 사용하는 클라이언트 시크릿입니다.",
+    link: "https://developers.naver.com/apps/#/register",
+    linkLabel: "네이버 개발자센터에서 발급",
+    placeholder: "xxxxxxxxxxxx",
   },
   {
     key: "FAL_KEY",
