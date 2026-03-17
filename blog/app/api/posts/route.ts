@@ -1,12 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const category = searchParams.get("category");
   const tag = searchParams.get("tag");
-  const page = parseInt(searchParams.get("page") ?? "1");
-  const limit = parseInt(searchParams.get("limit") ?? "10");
+  const page = Number.parseInt(searchParams.get("page") ?? "1", 10);
+  const limit = Number.parseInt(searchParams.get("limit") ?? "10", 10);
 
   const where: Record<string, unknown> = { published: true };
   if (category) where.category = category;
@@ -48,8 +48,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
+  const isPublished = published ?? false;
   const post = await prisma.post.create({
-    data: { title, slug, content, summary, category, tags: tags ?? "", thumbnail, published: published ?? false },
+    data: {
+      title,
+      slug,
+      content,
+      summary,
+      category,
+      tags: tags ?? "",
+      thumbnail,
+      published: isPublished,
+      publishedAt: isPublished ? new Date() : null,
+      seoTitle: title,
+      seoDescription: String(summary).slice(0, 160),
+    },
   });
 
   return NextResponse.json(post, { status: 201 });

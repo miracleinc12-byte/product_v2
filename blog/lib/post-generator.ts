@@ -1,7 +1,8 @@
+﻿import { createHash } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { fetchNews, CATEGORY_MAP } from "@/lib/news-fetcher";
-import { fetchGoogleTrends, matchTrendToCategory } from "@/lib/trending-fetcher";
-import { generateArticle, insertImages } from "@/lib/ai-writer";
+import { fetchGoogleTrends, matchTrendToCategory, type TrendingKeyword } from "@/lib/trending-fetcher";
+import { generateArticle, insertImages, type GeneratedPost } from "@/lib/ai-writer";
 import { fetchBodyImages } from "@/lib/image-fetcher";
 import type { NewsArticle } from "@/lib/news-fetcher";
 
@@ -10,6 +11,8 @@ export interface GenerateSettings {
   newsKey?: string;
   unsplashKey?: string;
   articleLength?: number;
+  triggerType?: "manual" | "cron";
+  publishMode?: "auto" | "draft";
 }
 
 export interface GenerateResult {
@@ -17,9 +20,15 @@ export interface GenerateResult {
   title: string;
   status: string;
   images?: number;
+  published?: boolean;
+  jobId?: number;
+  draftId?: number;
+  postId?: number;
+  sourceArticleId?: number;
 }
 
-type EnrichedArticle = NewsArticle & { _trend?: string; _topicImages: string[] };
+type EnrichedArticle = NewsArticle & { _trend?: string; _topicImages: string[]; _sourceArticleId?: number };
+type OnProgress = (data: Record<string, unknown>) => void;
 
 function makeSlug(title: string): string {
   const base = title
@@ -32,177 +41,388 @@ function makeSlug(title: string): string {
   return base ? `${base}-${id}` : `post-${id}`;
 }
 
-function extractKeywords(s: string): string[] {
-  return s
+function extractKeywords(value: string): string[] {
+  return value
     .replace(/[^가-힣a-z0-9\s]/gi, " ")
     .toLowerCase()
     .split(/\s+/)
-    .filter((w) => w.length > 1);
+    .filter((word) => word.length > 1);
+}
+
+function keywordOverlapRatio(a: string, b: string): number {
+  const ka = new Set(extractKeywords(a));
+  const kb = new Set(extractKeywords(b));
+  if (!ka.size || !kb.size) return 0;
+
+  let overlap = 0;
+  for (const word of ka) {
+    if (kb.has(word)) overlap++;
+  }
+
+  return overlap / Math.min(ka.size, kb.size);
 }
 
 function isSimilarKorean(a: string, b: string): boolean {
-  const ka = new Set(extractKeywords(a));
-  const kb = new Set(extractKeywords(b));
-  if (!ka.size || !kb.size) return false;
-  let overlap = 0;
-  for (const w of ka) if (kb.has(w)) overlap++;
-  const ratio = overlap / Math.min(ka.size, kb.size);
-  return ratio >= 0.35;
+  return keywordOverlapRatio(a, b) >= 0.35;
 }
 
 function collectTopicImages(articles: NewsArticle[], exclude?: string | null): string[] {
   const seen = new Set<string>(exclude ? [exclude] : []);
   const images: string[] = [];
-  for (const a of articles) {
-    if (a.urlToImage && !seen.has(a.urlToImage)) {
-      seen.add(a.urlToImage);
-      images.push(a.urlToImage);
+  for (const article of articles) {
+    if (article.urlToImage && !seen.has(article.urlToImage)) {
+      seen.add(article.urlToImage);
+      images.push(article.urlToImage);
     }
   }
   return images;
 }
 
-type OnProgress = (data: Record<string, unknown>) => void;
+function safeDate(value?: string | null): Date | undefined {
+  if (!value) return undefined;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
+function hashSourceArticle(article: NewsArticle): string {
+  return createHash("sha1")
+    .update([article.title, article.description ?? "", article.content ?? "", article.url].join("|"))
+    .digest("hex");
+}
+
+function parseTrafficScore(trend: TrendingKeyword): number | undefined {
+  const digits = trend.traffic.replace(/[^0-9]/g, "");
+  if (!digits) return undefined;
+  return Number.parseInt(digits, 10);
+}
+
+function calculateQualityScore(post: GeneratedPost, articleLength: number): number {
+  const titleScore = Math.min(post.title.trim().length / 28, 1) * 20;
+  const summaryScore = Math.min(post.summary.trim().length / 120, 1) * 20;
+  const contentScore = Math.min(post.content.trim().length / articleLength, 1) * 50;
+  const tagScore = Math.min(post.tags.split(",").filter(Boolean).length / 4, 1) * 10;
+  return Math.round((titleScore + summaryScore + contentScore + tagScore) * 10) / 10;
+}
+
+function parseExcludedKeywords(value: string): string[] {
+  return value
+    .split(",")
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+async function ensureAutomationRule(category: string, articleLength: number) {
+  return prisma.automationRule.upsert({
+    where: { category },
+    update: {},
+    create: {
+      category,
+      targetLength: articleLength,
+      publishMode: "auto",
+      requireReview: false,
+    },
+  });
+}
+
+async function upsertSourceArticle(article: NewsArticle, category: string) {
+  return prisma.sourceArticle.upsert({
+    where: { sourceUrl: article.url },
+    update: {
+      sourceName: article.source.name,
+      title: article.title,
+      summary: article.description ?? null,
+      content: article.content ?? null,
+      category,
+      imageUrl: article.urlToImage,
+      publishedAt: safeDate(article.publishedAt),
+      contentHash: hashSourceArticle(article),
+      fetchedAt: new Date(),
+    },
+    create: {
+      sourceName: article.source.name,
+      sourceUrl: article.url,
+      title: article.title,
+      summary: article.description ?? null,
+      content: article.content ?? null,
+      category,
+      imageUrl: article.urlToImage,
+      publishedAt: safeDate(article.publishedAt),
+      contentHash: hashSourceArticle(article),
+      fetchedAt: new Date(),
+    },
+  });
+}
+
+async function recordTrendKeywords(category: string, trends: TrendingKeyword[]) {
+  for (const trend of trends.slice(0, 10)) {
+    await prisma.trendKeyword.create({
+      data: {
+        keyword: trend.keyword,
+        category,
+        score: parseTrafficScore(trend),
+        collectedAt: new Date(),
+      },
+    });
+  }
+}
 
 export async function generateForCategory(
   category: string,
   settings: GenerateSettings,
   onProgress: OnProgress
 ): Promise<GenerateResult> {
-  const articleLength = settings.articleLength ?? 2000;
+  const fallbackArticleLength = settings.articleLength ?? 2000;
+  const rule = await ensureAutomationRule(category, fallbackArticleLength);
 
-  onProgress({ step: "기존 기사 목록 로드 중..." });
+  if (!rule.enabled) {
+    return { category, title: "-", status: "Automation disabled for category" };
+  }
 
-  const cutoff = new Date(Date.now() - 14 * 86400000);
-  const recentPosts = await prisma.post.findMany({
-    where: { category, createdAt: { gte: cutoff } },
-    select: { title: true, usedUrl: true },
+  const articleLength = rule.targetLength ?? fallbackArticleLength;
+  const publishMode = settings.publishMode ?? (rule.publishMode === "draft" ? "draft" : "auto");
+  const excludedKeywords = parseExcludedKeywords(rule.excludedKeywords);
+  const triggerType = settings.triggerType ?? "manual";
+
+  const job = await prisma.generationJob.create({
+    data: {
+      category,
+      status: "running",
+      triggerType,
+      publishMode,
+      articleLength,
+    },
   });
-  const usedUrls = new Set(recentPosts.map((p) => p.usedUrl).filter(Boolean) as string[]);
-  const existingTitles = recentPosts.map((p) => p.title);
 
-  onProgress({ step: "Google Trends 인기 검색어 수집 중..." });
+  try {
+    onProgress({ step: "Loading recent posts and generation history...", jobId: job.id });
 
-  const trends = await fetchGoogleTrends("KR");
-  const matchedTrends = trends.filter((t) => matchTrendToCategory(t.keyword) === category);
-
-  const candidateArticles: EnrichedArticle[] = [];
-  const seenUrls = new Set<string>();
-
-  if (matchedTrends.length > 0) {
-    onProgress({
-      step: `카테고리 매칭 트렌드 ${matchedTrends.length}건: "${matchedTrends.slice(0, 3).map((t) => t.keyword).join('", "')}"`,
+    const cutoff = new Date(Date.now() - 14 * 86400000);
+    const recentPosts = await prisma.post.findMany({
+      where: { category, createdAt: { gte: cutoff } },
+      select: { title: true, usedUrl: true },
     });
-    for (const trend of matchedTrends.slice(0, 5)) {
-      const articles = await fetchNews(category, settings.newsKey, 8, trend.keyword);
-      // 같은 트렌드 주제의 기사 이미지를 모두 수집
-      const topicImages = collectTopicImages(articles);
+    const usedUrls = new Set(recentPosts.map((post) => post.usedUrl).filter(Boolean) as string[]);
+    const existingTitles = recentPosts.map((post) => post.title);
 
-      for (const a of articles) {
-        if (!seenUrls.has(a.url) && !usedUrls.has(a.url)) {
-          candidateArticles.push({ ...a, _trend: trend.keyword, _topicImages: topicImages });
-          seenUrls.add(a.url);
+    onProgress({ step: "Collecting trend keywords...", jobId: job.id });
+
+    const trends = await fetchGoogleTrends("KR");
+    const matchedTrends = trends.filter((trend) => matchTrendToCategory(trend.keyword) === category);
+
+    if (matchedTrends.length > 0) {
+      await recordTrendKeywords(category, matchedTrends);
+    }
+
+    const candidateArticles: EnrichedArticle[] = [];
+    const seenUrls = new Set<string>();
+
+    if (matchedTrends.length > 0) {
+      onProgress({
+        step: `Matched ${matchedTrends.length} trends for ${category}`,
+        trends: matchedTrends.slice(0, 5).map((trend) => trend.keyword),
+        jobId: job.id,
+      });
+
+      for (const trend of matchedTrends.slice(0, 5)) {
+        const articles = await fetchNews(category, settings.newsKey, 8, trend.keyword);
+        const topicImages = collectTopicImages(articles);
+
+        for (const article of articles) {
+          if (!seenUrls.has(article.url) && !usedUrls.has(article.url)) {
+            candidateArticles.push({ ...article, _trend: trend.keyword, _topicImages: topicImages });
+            seenUrls.add(article.url);
+          }
+        }
+
+        if (candidateArticles.length >= 10) break;
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      }
+    }
+
+    if (candidateArticles.length < 3) {
+      const catKeyword = CATEGORY_MAP[category]?.keywords ?? category;
+      onProgress({ step: `Fallback article search for ${catKeyword}`, jobId: job.id });
+      const fallbackArticles = await fetchNews(category, settings.newsKey, 10);
+      const topicImages = collectTopicImages(fallbackArticles);
+
+      for (const article of fallbackArticles) {
+        if (!seenUrls.has(article.url) && !usedUrls.has(article.url)) {
+          candidateArticles.push({ ...article, _topicImages: topicImages });
+          seenUrls.add(article.url);
         }
       }
-      if (candidateArticles.length >= 10) break;
-      await new Promise((r) => setTimeout(r, 300));
     }
-  }
 
-  if (candidateArticles.length < 3) {
-    const catKeyword = CATEGORY_MAP[category]?.keywords ?? category;
-    onProgress({ step: `카테고리 키워드 "${catKeyword}"로 뉴스 검색 중...` });
-    const fallbackArticles = await fetchNews(category, settings.newsKey, 10);
-    const topicImages = collectTopicImages(fallbackArticles);
-    for (const a of fallbackArticles) {
-      if (!seenUrls.has(a.url) && !usedUrls.has(a.url)) {
-        candidateArticles.push({ ...a, _topicImages: topicImages });
-        seenUrls.add(a.url);
-      }
-    }
-  }
-
-  if (candidateArticles.length === 0) {
-    return { category, title: "-", status: "새로운 뉴스 없음 (최근 7일 내 뉴스 없음)" };
-  }
-
-  for (const article of candidateArticles.slice(0, 5)) {
-    const trendKeyword = article._trend;
-    const publishedDate = new Date(article.publishedAt).toLocaleDateString("ko-KR");
-    onProgress({
-      step: `"${trendKeyword ?? article.title.slice(0, 25)}" 기사 작성 중... (${publishedDate})`,
-    });
-
-    let generated;
-    try {
-      generated = await generateArticle(
-        article,
-        category,
-        settings.geminiKey,
-        articleLength,
-        trendKeyword
-      );
-    } catch (err) {
-      onProgress({
-        step: `생성 실패, 다음 뉴스 시도 중... (${err instanceof Error ? err.message.slice(0, 40) : "오류"})`,
+    if (candidateArticles.length === 0) {
+      await prisma.generationJob.update({
+        where: { id: job.id },
+        data: { status: "no_candidates", finishedAt: new Date(), error: "No recent source articles found" },
       });
-      continue;
+      return { category, title: "-", status: "No recent source articles found", jobId: job.id };
     }
 
-    const isDuplicate = existingTitles.some((t) => isSimilarKorean(t, generated.title));
-    if (isDuplicate) {
-      const matched = existingTitles.find((t) => isSimilarKorean(t, generated.title));
-      onProgress({ step: `중복 감지 ("${matched?.slice(0, 20)}..."), 다음 뉴스로 재시도...` });
-      usedUrls.add(article.url);
-      existingTitles.push(generated.title);
-      await new Promise((r) => setTimeout(r, 500));
-      continue;
+    for (const article of candidateArticles) {
+      const sourceArticle = await upsertSourceArticle(article, category);
+      article._sourceArticleId = sourceArticle.id;
     }
 
-    onProgress({ step: "이미지 수집 중..." });
+    for (const article of candidateArticles.slice(0, 5)) {
+      const trendKeyword = article._trend;
+      const sourceArticleId = article._sourceArticleId;
+      const publishedDate = safeDate(article.publishedAt)?.toLocaleDateString("ko-KR") ?? "unknown";
 
-    // 썸네일: 해당 기사 이미지 우선
-    const thumbnailUrl = article.urlToImage ?? null;
+      await prisma.generationJob.update({
+        where: { id: job.id },
+        data: {
+          selectedTrend: trendKeyword,
+          selectedTitle: article.title,
+          sourceArticleId,
+        },
+      });
 
-    // 본문 이미지: 같은 주제 뉴스 기사들의 실제 이미지 사용 (썸네일 제외)
-    const newsBodyImages = collectTopicImages(candidateArticles, thumbnailUrl).slice(0, 3);
+      onProgress({
+        step: `Generating article from ${trendKeyword ?? article.title.slice(0, 40)}`,
+        sourceArticleId,
+        publishedDate,
+        jobId: job.id,
+      });
 
-    // 뉴스 이미지가 부족할 때만 Unsplash로 보완
-    let bodyImages = [...newsBodyImages];
-    if (bodyImages.length < 2 && settings.unsplashKey) {
-      const unsplashImgs = await fetchBodyImages(
-        generated.tags,
-        generated.title,
-        settings.unsplashKey,
-        2 - bodyImages.length
-      );
-      bodyImages = [...bodyImages, ...unsplashImgs];
-    }
-    bodyImages = bodyImages.slice(0, 3);
+      let generated: GeneratedPost;
+      try {
+        generated = await generateArticle(article, category, settings.geminiKey, articleLength, trendKeyword);
+      } catch (error) {
+        onProgress({
+          step: `Generation failed, trying next candidate: ${error instanceof Error ? error.message : String(error)}`,
+          jobId: job.id,
+        });
+        continue;
+      }
 
-    const contentWithImages = insertImages(generated.content, bodyImages);
+      if (excludedKeywords.some((keyword) => generated.title.toLowerCase().includes(keyword))) {
+        onProgress({ step: `Excluded keyword matched in title: ${generated.title}`, jobId: job.id });
+        continue;
+      }
 
-    await prisma.post.create({
-      data: {
-        title: generated.title,
-        slug: makeSlug(generated.title),
-        summary: generated.summary,
-        content: contentWithImages,
+      const duplicateScore = existingTitles.reduce((max, title) => Math.max(max, keywordOverlapRatio(title, generated.title)), 0);
+      if (duplicateScore >= 0.35 || existingTitles.some((title) => isSimilarKorean(title, generated.title))) {
+        const matched = existingTitles.find((title) => isSimilarKorean(title, generated.title));
+        onProgress({ step: `Duplicate candidate skipped: ${matched ?? generated.title}`, jobId: job.id, duplicateScore });
+        usedUrls.add(article.url);
+        existingTitles.push(generated.title);
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        continue;
+      }
+
+      onProgress({ step: "Collecting images and preparing draft...", sourceArticleId, jobId: job.id });
+
+      const thumbnailUrl = article.urlToImage ?? null;
+      const newsBodyImages = collectTopicImages(candidateArticles, thumbnailUrl).slice(0, 3);
+
+      let bodyImages = [...newsBodyImages];
+      if (bodyImages.length < 2 && settings.unsplashKey) {
+        const unsplashImages = await fetchBodyImages(
+          generated.tags,
+          generated.title,
+          settings.unsplashKey,
+          2 - bodyImages.length
+        );
+        bodyImages = [...bodyImages, ...unsplashImages];
+      }
+      bodyImages = bodyImages.slice(0, 3);
+
+      const contentWithImages = insertImages(generated.content, bodyImages);
+      const qualityScore = calculateQualityScore({ ...generated, content: contentWithImages }, articleLength);
+      const needsReview = publishMode !== "auto" || rule.requireReview || qualityScore < 65;
+
+      const draft = await prisma.generatedDraft.create({
+        data: {
+          title: generated.title,
+          summary: generated.summary,
+          content: contentWithImages,
+          tags: generated.tags,
+          category,
+          status: needsReview ? "review" : "published",
+          qualityScore,
+          duplicateScore,
+          reviewNotes: needsReview ? "Manual review required before publishing" : null,
+          thumbnail: thumbnailUrl,
+          sourceArticleId,
+          generationJobId: job.id,
+        },
+      });
+
+      let postId: number | undefined;
+      if (!needsReview) {
+        const post = await prisma.post.create({
+          data: {
+            title: generated.title,
+            slug: makeSlug(generated.title),
+            summary: generated.summary,
+            content: contentWithImages,
+            category,
+            tags: generated.tags,
+            thumbnail: thumbnailUrl,
+            usedUrl: article.url,
+            published: true,
+            publishedAt: new Date(),
+            seoTitle: generated.title,
+            seoDescription: generated.summary.slice(0, 160),
+            sourceArticleId,
+            generationJobId: job.id,
+          },
+        });
+        postId = post.id;
+
+        await prisma.generatedDraft.update({
+          where: { id: draft.id },
+          data: { postId: post.id, status: "published", reviewNotes: null },
+        });
+      }
+
+      await prisma.generationJob.update({
+        where: { id: job.id },
+        data: {
+          status: needsReview ? "review_required" : "published",
+          finishedAt: new Date(),
+          sourceArticleId,
+          selectedTrend: trendKeyword,
+          selectedTitle: generated.title,
+        },
+      });
+
+      return {
         category,
-        tags: generated.tags,
-        thumbnail: thumbnailUrl,
-        usedUrl: article.url,
-        published: true,
-      },
+        title: generated.title,
+        status: needsReview ? "Draft created for review" : `Published with ${bodyImages.length + (thumbnailUrl ? 1 : 0)} images`,
+        images: bodyImages.length + (thumbnailUrl ? 1 : 0),
+        published: !needsReview,
+        jobId: job.id,
+        draftId: draft.id,
+        postId,
+        sourceArticleId,
+      };
+    }
+
+    await prisma.generationJob.update({
+      where: { id: job.id },
+      data: { status: "skipped", finishedAt: new Date(), error: "All candidates rejected or duplicate" },
     });
 
     return {
       category,
-      title: generated.title,
-      status: `게시 완료 (뉴스이미지 ${newsBodyImages.length}장 + 썸네일${thumbnailUrl ? " 있음" : " 없음"})`,
-      images: bodyImages.length + (thumbnailUrl ? 1 : 0),
+      title: "-",
+      status: "All candidates were rejected or detected as duplicates",
+      jobId: job.id,
     };
+  } catch (error) {
+    await prisma.generationJob.update({
+      where: { id: job.id },
+      data: {
+        status: "failed",
+        finishedAt: new Date(),
+        error: error instanceof Error ? error.message : String(error),
+      },
+    });
+    throw error;
   }
-
-  return { category, title: "-", status: "중복으로 인해 게시 불가 (새 뉴스 소진)" };
 }

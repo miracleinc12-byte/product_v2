@@ -8,20 +8,28 @@ datasource db {
 }
 
 model Post {
-  id        Int       @id @default(autoincrement())
-  title     String
-  slug      String    @unique
-  content   String
-  summary   String
-  category  String
-  tags      String    @default("")
-  thumbnail String?
-  published Boolean   @default(false)
-  viewCount Int       @default(0)
-  usedUrl   String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  comments  Comment[]
+  id              Int            @id @default(autoincrement())
+  title           String
+  slug            String         @unique
+  content         String
+  summary         String
+  category        String
+  tags            String         @default("")
+  thumbnail       String?
+  published       Boolean        @default(false)
+  publishedAt     DateTime?
+  viewCount       Int            @default(0)
+  usedUrl         String?
+  seoTitle        String?
+  seoDescription  String?
+  sourceArticleId Int?
+  generationJobId Int?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  comments        Comment[]
+  sourceArticle   SourceArticle? @relation(fields: [sourceArticleId], references: [id], onDelete: SetNull)
+  generationJob   GenerationJob? @relation(fields: [generationJobId], references: [id], onDelete: SetNull)
+  generatedDrafts GeneratedDraft[]
 }
 
 model Comment {
@@ -38,4 +46,101 @@ model Setting {
   key       String   @unique
   value     String
   updatedAt DateTime @updatedAt
+}
+
+model SourceArticle {
+  id              Int             @id @default(autoincrement())
+  sourceName      String
+  sourceUrl       String          @unique
+  title           String
+  summary         String?
+  content         String?
+  category        String
+  imageUrl        String?
+  author          String?
+  publishedAt     DateTime?
+  contentHash     String?
+  fetchedAt       DateTime        @default(now())
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  trends          TrendKeyword[]
+  generationJobs  GenerationJob[]
+  generatedDrafts GeneratedDraft[]
+  posts           Post[]
+}
+
+model TrendKeyword {
+  id              Int            @id @default(autoincrement())
+  keyword         String
+  category        String?
+  score           Float?
+  sourceArticleId Int?
+  collectedAt     DateTime       @default(now())
+  createdAt       DateTime       @default(now())
+  sourceArticle   SourceArticle? @relation(fields: [sourceArticleId], references: [id], onDelete: SetNull)
+
+  @@index([keyword, collectedAt])
+  @@index([category, collectedAt])
+}
+
+model GenerationJob {
+  id              Int             @id @default(autoincrement())
+  category        String
+  status          String          @default("queued")
+  triggerType     String          @default("manual")
+  startedAt       DateTime        @default(now())
+  finishedAt      DateTime?
+  error           String?
+  selectedTrend   String?
+  selectedTitle   String?
+  publishMode     String          @default("auto")
+  articleLength   Int?
+  sourceArticleId Int?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  sourceArticle   SourceArticle?  @relation(fields: [sourceArticleId], references: [id], onDelete: SetNull)
+  generatedDrafts GeneratedDraft[]
+  posts           Post[]
+
+  @@index([category, startedAt])
+  @@index([status, startedAt])
+}
+
+model GeneratedDraft {
+  id              Int            @id @default(autoincrement())
+  title           String
+  summary         String
+  content         String
+  tags            String         @default("")
+  category        String
+  status          String         @default("draft")
+  qualityScore    Float?
+  duplicateScore  Float?
+  reviewNotes     String?
+  thumbnail       String?
+  sourceArticleId Int?
+  generationJobId Int?
+  postId          Int?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  sourceArticle   SourceArticle? @relation(fields: [sourceArticleId], references: [id], onDelete: SetNull)
+  generationJob   GenerationJob? @relation(fields: [generationJobId], references: [id], onDelete: SetNull)
+  post            Post?          @relation(fields: [postId], references: [id], onDelete: SetNull)
+
+  @@index([category, createdAt])
+  @@index([status, createdAt])
+}
+
+model AutomationRule {
+  id               Int      @id @default(autoincrement())
+  category         String   @unique
+  enabled          Boolean  @default(true)
+  runsPerDay       Int      @default(3)
+  minIntervalMin   Int      @default(180)
+  targetLength     Int?
+  publishMode      String   @default("auto")
+  requireReview    Boolean  @default(false)
+  excludedKeywords String   @default("")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
