@@ -1,7 +1,7 @@
-﻿import { NextRequest, NextResponse } from "next/server";
-import { fetchNews } from "@/lib/news-fetcher";
-import { fetchGoogleTrends, matchTrendToCategory } from "@/lib/trending-fetcher";
-import { getSetting } from "@/lib/settings";
+import { NextRequest, NextResponse } from "next/server";
+import { fetchLatestCategoryNews, fetchNaverTrendKeywords } from "@/lib/naver-api";
+import { matchTrendToCategory } from "@/lib/trending-fetcher";
+import { getSettings } from "@/lib/settings";
 
 function checkAuth(req: NextRequest): boolean {
   const secret = req.headers.get("x-admin-secret");
@@ -14,37 +14,31 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const settings = await getSettings(["NAVER_CLIENT_ID", "NAVER_CLIENT_SECRET"]);
+  if (!settings.NAVER_CLIENT_ID || !settings.NAVER_CLIENT_SECRET) {
+    return NextResponse.json({ error: "NAVER API is not configured." }, { status: 400 });
+  }
+
+  const credentials = {
+    clientId: settings.NAVER_CLIENT_ID,
+    clientSecret: settings.NAVER_CLIENT_SECRET,
+  };
+
   const { searchParams } = new URL(req.url);
   const keyword = searchParams.get("keyword")?.trim();
   const categoryParam = searchParams.get("category")?.trim();
 
-  const trends = await fetchGoogleTrends("KR");
-
-  if (!keyword) {
-    return NextResponse.json({ trends: trends.slice(0, 12) });
+  if (!keyword && !categoryParam) {
+    const trends = await fetchNaverTrendKeywords(credentials, 12);
+    return NextResponse.json({ trends });
   }
 
-  const newsApiKey = await getSetting("NEWS_API_KEY");
-  if (!newsApiKey) {
-    return NextResponse.json(
-      {
-        trends: trends.slice(0, 12),
-        selectedKeyword: keyword,
-        selectedCategory: categoryParam ?? matchTrendToCategory(keyword),
-        articles: [],
-        error: "NEWS_API_KEY is not configured.",
-      },
-      { status: 400 }
-    );
-  }
-
-  const selectedCategory = categoryParam || matchTrendToCategory(keyword);
-  const articles = await fetchNews(selectedCategory, newsApiKey, 8, keyword);
+  const selectedCategory = categoryParam || (keyword ? matchTrendToCategory(keyword) : "정치");
+  const articles = await fetchLatestCategoryNews(selectedCategory, credentials, 8, keyword);
 
   return NextResponse.json({
-    trends: trends.slice(0, 12),
-    selectedKeyword: keyword,
+    selectedKeyword: keyword ?? null,
     selectedCategory,
-    articles: articles.slice(0, 8),
+    articles,
   });
 }
