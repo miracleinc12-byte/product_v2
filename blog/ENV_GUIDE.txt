@@ -1,0 +1,28 @@
+# =============================================
+# 블로그 자동 게시 환경변수 설정 가이드
+# =============================================
+
+DATABASE_URL=file:./prisma/dev.db
+ADMIN_SECRET=your-admin-password-here
+CRON_SECRET=your-cron-secret-here
+
+# Google Gemini API (기사 재작성)
+# 발급: https://aistudio.google.com/app/apikey
+# 무료 티어: 분당 15회, 일 1,500회
+GEMINI_API_KEY=your-gemini-api-key-here
+
+# NewsAPI (실제 뉴스 수집)
+# 발급: https://newsapi.org/register
+# 무료 티어: 일 100회 요청
+NEWS_API_KEY=your-newsapi-key-here
+
+# ★ 나노바나나2 이미지 생성 (fal.ai)
+# 발급: https://fal.ai/dashboard/keys
+# 가격: 이미지 1장 약 $0.01 (1K 해상도)
+# 무료 크레딧: 가입 시 $1 제공
+FAL_KEY=your-fal-api-key-here
+
+# Unsplash API (나노바나나2 없을 때 폴백)
+# 발급: https://unsplash.com/developers
+# 없어도 카테고리 기본 이미지 자동 적용됨
+UNSPLASH_ACCESS_KEY=your-unsplash-access-key-here
