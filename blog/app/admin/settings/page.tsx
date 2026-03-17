@@ -181,14 +181,14 @@ export default function SettingsPage() {
   if (!authed) {
     return (
       <div className="max-w-sm mx-auto mt-20">
-        <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white mb-6 text-center">관리자 로그인</h1>
-        <form onSubmit={handleAuth} className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+        <h1 className="text-2xl font-extrabold text-[var(--nyt-black)] mb-6 text-center">관리자 로그인</h1>
+        <form onSubmit={handleAuth} className="bg-[var(--nyt-paper)] dark:bg-[var(--nyt-paper)] rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
           <input
             type="password"
             value={adminSecret}
             onChange={(e) => setAdminSecret(e.target.value)}
             placeholder="관리자 시크릿"
-            className="w-full px-4 py-2 mb-4 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-2 mb-4 rounded-lg border border-[var(--nyt-border)] bg-[var(--nyt-bg)] dark:bg-[var(--nyt-bg)] text-[var(--nyt-black)] focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <button type="submit" className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">
             로그인
@@ -202,8 +202,8 @@ export default function SettingsPage() {
     <div className="max-w-5xl mx-auto space-y-8">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white">API 및 운영 설정</h1>
-          <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">기사 생성과 자동 게시에 필요한 키를 관리합니다.</p>
+          <h1 className="text-2xl font-extrabold text-[var(--nyt-black)]">API 및 운영 설정</h1>
+          <p className="text-sm text-[var(--nyt-gray)] mt-1">기사 생성과 자동 게시에 필요한 키를 관리합니다.</p>
         </div>
         <div className="flex items-center gap-3">
           <Link href="/admin/trending-live" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">트렌드 실시간 보기</Link>
@@ -222,7 +222,7 @@ export default function SettingsPage() {
       )}
 
       {fetchLoading ? (
-        <div className="text-center py-12 text-gray-600 dark:text-gray-300">설정을 불러오는 중입니다...</div>
+        <div className="text-center py-12 text-[var(--nyt-gray)]">설정을 불러오는 중입니다...</div>
       ) : (
         <form onSubmit={handleSave} className="space-y-4">
           {SETTING_CONFIGS.map((cfg) => {
@@ -230,20 +230,20 @@ export default function SettingsPage() {
             const isSet = current?.set ?? false;
 
             return (
-              <div key={cfg.key} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5">
+              <div key={cfg.key} className="bg-[var(--nyt-paper)] dark:bg-[var(--nyt-paper)] rounded-xl border border-[var(--nyt-border)] p-5">
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-gray-900 dark:text-white text-sm">{cfg.label}</h3>
+                      <h3 className="font-semibold text-[var(--nyt-black)] text-sm">{cfg.label}</h3>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                         isSet
                           ? "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400"
-                          : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
+                          : "bg-gray-100 dark:bg-gray-700 text-[var(--nyt-light)]"
                       }`}>
                         {isSet ? "설정됨" : "미설정"}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{cfg.description}</p>
+                    <p className="text-xs text-[var(--nyt-light)] mt-1">{cfg.description}</p>
                     {cfg.link && (
                       <a href={cfg.link} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 dark:text-blue-400 hover:underline mt-1 inline-block">
                         {cfg.linkLabel}
@@ -262,14 +262,14 @@ export default function SettingsPage() {
                 </div>
 
                 {isSet && (
-                  <div className="mb-3 flex items-center gap-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg px-3 py-2">
-                    <code className="text-xs text-gray-600 dark:text-gray-300 flex-1 font-mono break-all">
+                  <div className="mb-3 flex items-center gap-2 bg-[var(--nyt-bg)] dark:bg-[var(--nyt-bg)]/50 rounded-lg px-3 py-2">
+                    <code className="text-xs text-[var(--nyt-gray)] flex-1 font-mono break-all">
                       {showValues[cfg.key] ? formValues[cfg.key] || current.masked : current.masked}
                     </code>
                     <button
                       type="button"
                       onClick={() => setShowValues((s) => ({ ...s, [cfg.key]: !s[cfg.key] }))}
-                      className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                      className="text-xs text-[var(--nyt-light)] hover:text-[var(--nyt-black)]"
                     >
                       {showValues[cfg.key] ? "숨기기" : "보기"}
                     </button>
@@ -281,7 +281,7 @@ export default function SettingsPage() {
                   value={formValues[cfg.key] ?? ""}
                   onChange={(e) => setFormValues((f) => ({ ...f, [cfg.key]: e.target.value }))}
                   placeholder={isSet ? "새 값으로 변경하려면 입력" : cfg.placeholder}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                  className="w-full px-3 py-2 rounded-lg border border-[var(--nyt-border)] bg-[var(--nyt-bg)] dark:bg-[var(--nyt-bg)] text-[var(--nyt-black)] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
                 />
               </div>
             );
@@ -299,9 +299,9 @@ export default function SettingsPage() {
         </form>
       )}
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5">
-        <h3 className="font-semibold text-gray-900 dark:text-white text-sm mb-2">자동 게시 테스트</h3>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">설정을 저장한 뒤 선택한 카테고리로 자동 게시 API를 바로 시험할 수 있습니다.</p>
+      <div className="bg-[var(--nyt-paper)] dark:bg-[var(--nyt-paper)] rounded-xl border border-[var(--nyt-border)] p-5">
+        <h3 className="font-semibold text-[var(--nyt-black)] text-sm mb-2">자동 게시 테스트</h3>
+        <p className="text-xs text-[var(--nyt-light)] mb-4">설정을 저장한 뒤 선택한 카테고리로 자동 게시 API를 바로 시험할 수 있습니다.</p>
         <AutoPostTester adminSecret={adminSecret} />
       </div>
     </div>
@@ -357,7 +357,7 @@ function AutoPostTester({ adminSecret }: { adminSecret: string }) {
       <select
         value={category}
         onChange={(e) => setCategory(e.target.value)}
-        className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="px-3 py-2 rounded-lg border border-[var(--nyt-border)] bg-[var(--nyt-bg)] dark:bg-[var(--nyt-bg)] text-[var(--nyt-black)] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
       >
         {TEST_CATEGORIES.map((item) => (
           <option key={item} value={item}>{item}</option>

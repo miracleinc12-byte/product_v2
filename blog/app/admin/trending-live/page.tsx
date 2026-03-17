@@ -169,14 +169,14 @@ export default function TrendingLivePage() {
   if (!authed) {
     return (
       <div className="max-w-sm mx-auto mt-20">
-        <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white mb-6 text-center">관리자 로그인</h1>
-        <form onSubmit={handleAuth} className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+        <h1 className="text-2xl font-extrabold text-[var(--nyt-black)] mb-6 text-center">관리자 로그인</h1>
+        <form onSubmit={handleAuth} className="bg-[var(--nyt-paper)] dark:bg-[var(--nyt-paper)] rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
           <input
             type="password"
             value={adminSecret}
             onChange={(event) => setAdminSecret(event.target.value)}
             placeholder="관리자 시크릿"
-            className="w-full px-4 py-2 mb-4 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-2 mb-4 rounded-lg border border-[var(--nyt-border)] bg-[var(--nyt-bg)] dark:bg-[var(--nyt-bg)] text-[var(--nyt-black)] focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <button type="submit" className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">
             로그인
@@ -190,8 +190,8 @@ export default function TrendingLivePage() {
     <section className="max-w-6xl mx-auto space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white">트렌드 실시간</h1>
-          <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">네이버 데이터랩과 네이버 뉴스로 카테고리별 인기 키워드와 최신 기사를 확인합니다.</p>
+          <h1 className="text-2xl font-extrabold text-[var(--nyt-black)]">트렌드 실시간</h1>
+          <p className="text-sm text-[var(--nyt-gray)] mt-1">네이버 데이터랩과 네이버 뉴스로 카테고리별 인기 키워드와 최신 기사를 확인합니다.</p>
         </div>
         <div className="flex items-center gap-3">
           <Link href="/admin/settings" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">설정으로 이동</Link>
@@ -199,7 +199,7 @@ export default function TrendingLivePage() {
             type="button"
             onClick={() => void loadTrends(adminSecret)}
             disabled={loadingTrends}
-            className="px-3 py-2 text-xs font-medium rounded-lg border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+            className="px-3 py-2 text-xs font-medium rounded-lg border border-[var(--nyt-border)] text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
           >
             {loadingTrends ? "새로고침 중..." : "트렌드 새로고침"}
           </button>
@@ -219,16 +219,16 @@ export default function TrendingLivePage() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)] gap-5">
-        <div className="rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800">
-          <div className="px-4 py-3 bg-gray-50 dark:bg-gray-900/40 border-b border-gray-100 dark:border-gray-700 text-xs font-semibold tracking-wide text-gray-700 dark:text-gray-300 uppercase">
+        <div className="rounded-xl border border-[var(--nyt-border)] overflow-hidden bg-[var(--nyt-paper)] dark:bg-[var(--nyt-paper)]">
+          <div className="px-4 py-3 bg-[var(--nyt-bg-accent)] border-b border-[var(--nyt-border)] text-xs font-semibold tracking-wide text-[var(--nyt-gray)] uppercase">
             실시간 키워드
           </div>
           <div className="max-h-[640px] overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
             {loadingTrends && trends.length === 0 && (
-              <div className="px-4 py-8 text-sm text-gray-600 dark:text-gray-300 text-center">트렌드를 불러오는 중입니다...</div>
+              <div className="px-4 py-8 text-sm text-[var(--nyt-gray)] text-center">트렌드를 불러오는 중입니다...</div>
             )}
             {!loadingTrends && trends.length === 0 && (
-              <div className="px-4 py-8 text-sm text-gray-600 dark:text-gray-300 text-center">표시할 트렌드가 없습니다.</div>
+              <div className="px-4 py-8 text-sm text-[var(--nyt-gray)] text-center">표시할 트렌드가 없습니다.</div>
             )}
             {trends.map((trend) => {
               const active = viewMode === "trend" && selectedTrend?.keyword === trend.keyword;
@@ -255,7 +255,7 @@ export default function TrendingLivePage() {
                     </span>
                   </div>
                   {trend.newsTitle && (
-                    <p className={`mt-2 text-xs leading-5 ${active ? "text-white/75 dark:text-gray-700" : "text-gray-700 dark:text-gray-300"}`}>
+                    <p className={`mt-2 text-xs leading-5 ${active ? "text-white/75 dark:text-gray-700" : "text-[var(--nyt-gray)]"}`}>
                       {trend.newsTitle}
                     </p>
                   )}
@@ -265,12 +265,12 @@ export default function TrendingLivePage() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800">
-          <div className="px-4 py-3 bg-gray-50 dark:bg-gray-900/40 border-b border-gray-100 dark:border-gray-700 space-y-3">
+        <div className="rounded-xl border border-[var(--nyt-border)] overflow-hidden bg-[var(--nyt-paper)] dark:bg-[var(--nyt-paper)]">
+          <div className="px-4 py-3 bg-[var(--nyt-bg-accent)] border-b border-[var(--nyt-border)] space-y-3">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <div className="text-xs font-semibold tracking-wide text-gray-700 dark:text-gray-300 uppercase">관련 기사</div>
-                <h3 className="mt-1 text-base font-semibold text-gray-900 dark:text-white">
+                <div className="text-xs font-semibold tracking-wide text-[var(--nyt-gray)] uppercase">관련 기사</div>
+                <h3 className="mt-1 text-base font-semibold text-[var(--nyt-black)]">
                   {viewMode === "trend" && selectedTrend
                     ? `${selectedTrend.keyword} 최신 기사`
                     : `${selectedCategory} 최신 기사`}
@@ -311,7 +311,7 @@ export default function TrendingLivePage() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="text-xs font-semibold text-blue-700 dark:text-blue-300 mb-2">선택 키워드 대표 기사</div>
-                    <a href={selectedTrend.newsUrl} target="_blank" rel="noopener noreferrer" className="block text-sm font-semibold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 leading-6">
+                    <a href={selectedTrend.newsUrl} target="_blank" rel="noopener noreferrer" className="block text-sm font-semibold text-[var(--nyt-black)] hover:text-blue-600 dark:hover:text-blue-400 leading-6">
                       {selectedTrend.newsTitle}
                     </a>
                   </div>
@@ -319,25 +319,25 @@ export default function TrendingLivePage() {
               </article>
             )}
 
-            {loadingArticles && <div className="text-sm text-gray-600 dark:text-gray-300">관련 기사를 불러오는 중입니다...</div>}
+            {loadingArticles && <div className="text-sm text-[var(--nyt-gray)]">관련 기사를 불러오는 중입니다...</div>}
             {!loadingArticles && !naverApiReady && (
-              <div className="text-sm text-gray-700 dark:text-gray-300">네이버 API를 설정하면 여기서 실시간 기사 목록을 바로 볼 수 있습니다.</div>
+              <div className="text-sm text-[var(--nyt-gray)]">네이버 API를 설정하면 여기서 실시간 기사 목록을 바로 볼 수 있습니다.</div>
             )}
             {!loadingArticles && naverApiReady && articles.length === 0 && !error && (
-              <div className="text-sm text-gray-700 dark:text-gray-300">조건에 맞는 최신 기사가 없습니다.</div>
+              <div className="text-sm text-[var(--nyt-gray)]">조건에 맞는 최신 기사가 없습니다.</div>
             )}
             {articles.map((article) => (
-              <article key={`${article.url}-${article.publishedAt}`} className="rounded-xl border border-gray-100 dark:border-gray-700 p-4 hover:border-gray-300 dark:hover:border-gray-500 transition-colors">
-                <div className="flex items-center gap-2 text-xs text-gray-700 dark:text-gray-300 mb-2">
+              <article key={`${article.url}-${article.publishedAt}`} className="rounded-xl border border-[var(--nyt-border)] p-4 hover:border-gray-300 dark:hover:border-gray-500 transition-colors">
+                <div className="flex items-center gap-2 text-xs text-[var(--nyt-gray)] mb-2">
                   <span>{article.source?.name ?? "Naver News"}</span>
                   <span>•</span>
                   <span>{formatPublishedAt(article.publishedAt)}</span>
                 </div>
-                <a href={article.url} target="_blank" rel="noopener noreferrer" className="block text-sm font-semibold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 leading-6">
+                <a href={article.url} target="_blank" rel="noopener noreferrer" className="block text-sm font-semibold text-[var(--nyt-black)] hover:text-blue-600 dark:hover:text-blue-400 leading-6">
                   {article.title}
                 </a>
                 {article.description && (
-                  <p className="mt-2 text-sm text-gray-600 dark:text-gray-300 leading-6 line-clamp-3">{article.description}</p>
+                  <p className="mt-2 text-sm text-[var(--nyt-gray)] leading-6 line-clamp-3">{article.description}</p>
                 )}
                 <div className="mt-4 flex items-center gap-2">
                   <button
@@ -351,7 +351,7 @@ export default function TrendingLivePage() {
                     href={article.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="px-3 py-2 text-xs font-semibold rounded-lg border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    className="px-3 py-2 text-xs font-semibold rounded-lg border border-[var(--nyt-border)] text-[var(--nyt-gray)] hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                   >
                     원문 보기
                   </a>

@@ -177,14 +177,14 @@ export default function AdminPage() {
   if (!authed) {
     return (
       <div className="max-w-sm mx-auto mt-20">
-        <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white mb-6 text-center">관리자 로그인</h1>
-        <form onSubmit={handleAuth} className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+        <h1 className="text-2xl font-extrabold text-[var(--nyt-black)] mb-6 text-center">관리자 로그인</h1>
+        <form onSubmit={handleAuth} className="bg-[var(--nyt-paper)] dark:bg-[var(--nyt-paper)] rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
           <input
             type="password"
             value={secret}
             onChange={(event) => setSecret(event.target.value)}
             placeholder="관리자 시크릿"
-            className="w-full px-4 py-2 mb-4 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-2 mb-4 rounded-lg border border-[var(--nyt-border)] bg-[var(--nyt-bg)] dark:bg-[var(--nyt-bg)] text-[var(--nyt-black)] focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <button type="submit" className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">
             로그인
@@ -198,8 +198,8 @@ export default function AdminPage() {
     <div className="max-w-4xl mx-auto">
       <div className="flex items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white">기사 작성</h1>
-          <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">트렌드 화면에서 가져온 기사도 여기서 SEO 초안으로 편집할 수 있습니다.</p>
+          <h1 className="text-2xl font-extrabold text-[var(--nyt-black)]">기사 작성</h1>
+          <p className="text-sm text-[var(--nyt-gray)] mt-1">트렌드 화면에서 가져온 기사도 여기서 SEO 초안으로 편집할 수 있습니다.</p>
         </div>
         {draftLoading && <span className="text-sm text-blue-600 dark:text-blue-400">SEO 초안 생성 중...</span>}
       </div>
@@ -213,32 +213,32 @@ export default function AdminPage() {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">제목 *</label>
+            <label className="block text-sm font-medium text-[var(--nyt-gray)] mb-1">제목 *</label>
             <input
               type="text"
               value={form.title}
               onChange={(event) => setForm((current) => ({ ...current, title: event.target.value, slug: handleSlug(event.target.value) }))}
               required
-              className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full px-4 py-2 rounded-lg border border-[var(--nyt-border)] bg-[var(--nyt-paper)] dark:bg-[var(--nyt-paper)] text-[var(--nyt-black)] focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">슬러그 *</label>
+            <label className="block text-sm font-medium text-[var(--nyt-gray)] mb-1">슬러그 *</label>
             <input
               type="text"
               value={form.slug}
               onChange={(event) => setForm((current) => ({ ...current, slug: event.target.value }))}
               required
-              className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full px-4 py-2 rounded-lg border border-[var(--nyt-border)] bg-[var(--nyt-paper)] dark:bg-[var(--nyt-paper)] text-[var(--nyt-black)] focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">카테고리 *</label>
+            <label className="block text-sm font-medium text-[var(--nyt-gray)] mb-1">카테고리 *</label>
             <select
               value={form.category}
               onChange={(event) => setForm((current) => ({ ...current, category: event.target.value }))}
               required
-              className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full px-4 py-2 rounded-lg border border-[var(--nyt-border)] bg-[var(--nyt-paper)] dark:bg-[var(--nyt-paper)] text-[var(--nyt-black)] focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             >
               <option value="">카테고리 선택</option>
               {CATEGORIES.map((category) => (
@@ -247,12 +247,12 @@ export default function AdminPage() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">기사 유형 *</label>
+            <label className="block text-sm font-medium text-[var(--nyt-gray)] mb-1">기사 유형 *</label>
             <select
               value={form.articleType}
               onChange={(event) => setForm((current) => ({ ...current, articleType: event.target.value }))}
               required
-              className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full px-4 py-2 rounded-lg border border-[var(--nyt-border)] bg-[var(--nyt-paper)] dark:bg-[var(--nyt-paper)] text-[var(--nyt-black)] focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             >
               {ARTICLE_TYPES.map((type) => (
                 <option key={type.value} value={type.value}>{type.label}</option>
@@ -260,49 +260,49 @@ export default function AdminPage() {
             </select>
           </div>
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">참고 URL</label>
+            <label className="block text-sm font-medium text-[var(--nyt-gray)] mb-1">참고 URL</label>
             <input
               type="url"
               value={form.referenceUrl}
               onChange={(event) => setForm((current) => ({ ...current, referenceUrl: event.target.value }))}
               placeholder="https://..."
-              className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full px-4 py-2 rounded-lg border border-[var(--nyt-border)] bg-[var(--nyt-paper)] dark:bg-[var(--nyt-paper)] text-[var(--nyt-black)] focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">태그 (쉼표 구분)</label>
+            <label className="block text-sm font-medium text-[var(--nyt-gray)] mb-1">태그 (쉼표 구분)</label>
             <input
               type="text"
               value={form.tags}
               onChange={(event) => setForm((current) => ({ ...current, tags: event.target.value }))}
               placeholder="네이버, SEO, 트렌드"
-              className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full px-4 py-2 rounded-lg border border-[var(--nyt-border)] bg-[var(--nyt-paper)] dark:bg-[var(--nyt-paper)] text-[var(--nyt-black)] focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">썸네일 URL</label>
+            <label className="block text-sm font-medium text-[var(--nyt-gray)] mb-1">썸네일 URL</label>
             <input
               type="url"
               value={form.thumbnail}
               onChange={(event) => setForm((current) => ({ ...current, thumbnail: event.target.value }))}
               placeholder="https://..."
-              className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full px-4 py-2 rounded-lg border border-[var(--nyt-border)] bg-[var(--nyt-paper)] dark:bg-[var(--nyt-paper)] text-[var(--nyt-black)] focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             />
           </div>
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">요약 *</label>
+            <label className="block text-sm font-medium text-[var(--nyt-gray)] mb-1">요약 *</label>
             <textarea
               value={form.summary}
               onChange={(event) => setForm((current) => ({ ...current, summary: event.target.value }))}
               required
               rows={3}
-              className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"
+              className="w-full px-4 py-2 rounded-lg border border-[var(--nyt-border)] bg-[var(--nyt-paper)] dark:bg-[var(--nyt-paper)] text-[var(--nyt-black)] focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">본문 (Markdown) *</label>
+          <label className="block text-sm font-medium text-[var(--nyt-gray)] mb-1">본문 (Markdown) *</label>
           <div data-color-mode="auto">
             <MDEditor value={content} onChange={(value) => setContent(value ?? "")} height={420} />
           </div>
@@ -316,7 +316,7 @@ export default function AdminPage() {
               onChange={(event) => setForm((current) => ({ ...current, published: event.target.checked }))}
               className="w-4 h-4 accent-blue-600"
             />
-            <span className="text-sm text-gray-700 dark:text-gray-300">바로 공개</span>
+            <span className="text-sm text-[var(--nyt-gray)]">바로 공개</span>
           </label>
           <button
             type="submit"
