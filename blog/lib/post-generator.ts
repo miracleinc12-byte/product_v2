@@ -10,6 +10,7 @@ export interface GenerateSettings {
   geminiKey?: string;
   newsKey?: string;
   unsplashKey?: string;
+  openAiKey?: string;
   articleLength?: number;
   triggerType?: "manual" | "cron";
   publishMode?: "auto" | "draft";
@@ -315,11 +316,30 @@ export async function generateForCategory(
 
       onProgress({ step: "Collecting images and preparing draft...", sourceArticleId, jobId: job.id });
 
-      const thumbnailUrl = article.urlToImage ?? null;
-      const newsBodyImages = collectTopicImages(candidateArticles, thumbnailUrl).slice(0, 3);
+      let thumbnailUrl = article.urlToImage ?? null;
+      let bodyImages = collectTopicImages(candidateArticles, thumbnailUrl).slice(0, 3);
 
-      let bodyImages = [...newsBodyImages];
+      // Generate a high-quality DALL-E image if key is provided and we want a unique cover
+      if (settings.openAiKey) {
+        onProgress({ step: "Generating DALL-E image for thumbnail...", jobId: job.id });
+        const { fetchImage } = await import('@/lib/image-fetcher');
+        const dalleImage = await fetchImage(generated.tags.split(',')[0] ?? "News", generated.title, {
+          openAiKey: settings.openAiKey,
+          unsplashKey: settings.unsplashKey
+        });
+        
+        if (dalleImage) {
+          // If we successfully generated a DALL-E image, make it the main thumbnail
+          // and push the original news thumbnail down to the body images.
+          if (thumbnailUrl) {
+            bodyImages.unshift(thumbnailUrl);
+          }
+          thumbnailUrl = dalleImage;
+        }
+      }
+
       if (bodyImages.length < 2 && settings.unsplashKey) {
+        const { fetchBodyImages } = await import('@/lib/image-fetcher');
         const unsplashImages = await fetchBodyImages(
           generated.tags,
           generated.title,

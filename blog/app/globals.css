@@ -117,3 +117,28 @@ h1, h2, h3, h4, h5, h6 {
 
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+.admin-preview-markdown,
+.admin-preview-markdown .wmde-markdown,
+.admin-preview-markdown .wmde-markdown-color {
+  background: var(--nyt-paper) !important;
+  color: var(--nyt-black) !important;
+}
+
+.admin-preview-markdown .wmde-markdown {
+  padding: 0;
+}
+
+.admin-preview-markdown .wmde-markdown h1,
+.admin-preview-markdown .wmde-markdown h2,
+.admin-preview-markdown .wmde-markdown h3,
+.admin-preview-markdown .wmde-markdown h4,
+.admin-preview-markdown .wmde-markdown h5,
+.admin-preview-markdown .wmde-markdown h6,
+.admin-preview-markdown .wmde-markdown p,
+.admin-preview-markdown .wmde-markdown li,
+.admin-preview-markdown .wmde-markdown blockquote,
+.admin-preview-markdown .wmde-markdown strong,
+.admin-preview-markdown .wmde-markdown code {
+  color: inherit !important;
+}

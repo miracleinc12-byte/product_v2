@@ -10,13 +10,13 @@ export interface GeneratedPost {
 export interface SeoRewriteInput {
   articleType: string;
   category: string;
+  personaMode?: string;
   sourceTitle: string;
   sourceDescription: string;
   sourceContent?: string;
   referenceUrl?: string;
   sourceName?: string;
 }
-
 export interface SeoRewriteOptions {
   provider: "gemini" | "openai";
   apiKey: string;
@@ -24,8 +24,38 @@ export interface SeoRewriteOptions {
 }
 
 export interface SeoRewriteResult extends GeneratedPost {
+  slug: string;
   seoTitle: string;
   seoDescription: string;
+  persona: string;
+  imageKeywords: string[];
+}
+
+function sanitizeSlug(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFKC")
+    .replace(/[^\p{L}\p{N}\s-]/gu, " ")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+function buildPersonaInstruction(personaMode?: string) {
+  switch (personaMode) {
+    case "investor":
+      return "Use an investor persona. Focus on market impact, uncertainty, timing, and decision signals.";
+    case "consumer":
+      return "Use a consumer persona. Focus on everyday effects, costs, convenience, and practical choices.";
+    case "operator":
+      return "Use a working-level operator persona. Focus on execution risk, workflow changes, and operational implications.";
+    case "policymaker":
+      return "Use a policymaker persona. Focus on policy goals, tradeoffs, public impact, and unintended consequences.";
+    case "beginner":
+      return "Use a beginner-reader persona. Explain the issue clearly, define context, and reduce jargon without oversimplifying.";
+    default:
+      return "Choose the single most relevant persona based on the article and explain the issue from that perspective.";
+  }
 }
 
 function extractJson<T>(fullText: string): T {
@@ -175,8 +205,8 @@ export async function rewriteArticleForSeo(input: SeoRewriteInput, options: SeoR
   const minLen = articleLength;
   const maxLen = Math.round(articleLength * 1.2);
 
-  const prompt = `You are a Korean SEO editor working for both Google SEO and Naver SEO.
-Rewrite the referenced news into an original Korean article for a personal blog.
+  const prompt = `You are a Korean SEO editor and feature writer working for both Google SEO and Naver SEO.
+Analyze the referenced article first, then create an original Korean blog draft.
 Do not translate literally and do not copy source phrasing.
 
 [Article Info]
@@ -187,27 +217,55 @@ Source Summary: ${input.sourceDescription}
 Source Body: ${input.sourceContent ?? input.sourceDescription}
 Source Name: ${input.sourceName ?? "External news source"}
 Reference URL: ${input.referenceUrl ?? ""}
+Selected Persona Technique: ${input.personaMode ?? "auto"}
 
-[SEO Requirements]
-1. Write a natural Korean title optimized for both Google SEO and Naver SEO.
-2. Write a 2-3 sentence summary that also works as a search snippet.
-3. Write an original Markdown article of roughly ${minLen}-${maxLen} characters.
-4. Use ## and ### headings.
-5. Open with why this topic matters today.
-6. Include fact summary, background, implications, and a short takeaway section.
-7. Avoid keyword stuffing and sensational language.
-8. Provide 4-6 tags.
-9. Create a separate seoTitle and seoDescription.
-10. Do not print the reference URL inside the article body.
+[Writing Requirements]
+1. First infer the core issue, key actors, audience intent, search intent, and primary keyword from the source article.
+Persona Technique Rule: ${buildPersonaInstruction(input.personaMode)}
+2. Title Creation: Write a natural Korean title optimized for both Google SEO and Naver SEO.
+   - Put the primary keyword or issue near the front when natural.
+   - Make it look like a trustworthy Korean blog headline, not a breaking-news headline (within 25 characters).
+3. Slug Creation: Create a Korean slug based on the core issue and title. Use lowercase letters, numbers, Korean text, and hyphens only.
+4. Summary Creation: Write a 2-3 sentence summary (around 150 characters) that works as a search snippet and accurately reflects the source article.
+5. Body Length: Write a comprehensive, long-form Markdown article of roughly ${minLen}-${maxLen} characters. The article MUST be substantial and deep.
+6. Persona Reinterpretation: Reinterpret the article using the chosen persona technique:
+   - choose one clear persona who would care about this issue most,
+   - explain the issue from that persona's concerns, decisions, and risks,
+   - keep the article factual and analytical, not fictional.
+7. Advanced SEO Structure: Use a Korean information-blog structure that performs well in Google SEO and Naver SEO.
+   - 'Answer-First' Opening: Immediately answer the reader's main question or provide the core takeaway in the first paragraph.
+   - Short, scannable paragraphs (2-3 sentences max).
+   - Use explicit headings (H2, H3) with search-friendly wording and long-tail keywords.
+   - Use bullet points, bold text for emphasis, and blockquotes for key insights.
+8. Body Flow (Mandatory Structure):
+   - ## [Intro] 왜 지금 이 이슈가 중요한가? (Context & Hook)
+   - ## 핵심 내용 요약 (Answer First)
+   - ## 상세 분석 및 배경 (Deep Dive)
+   - ## [Persona] 관점에서의 영향 및 시사점 (Implications)
+   - ## 향후 전망 및 실질적 대비책 (Takeaways & Next Steps)
+   - ## 요약 및 결론 (Conclusion)
+9. Writing Style:
+   - Easy to scan, confident but not sensational.
+   - Clear transitions between paragraphs.
+   - Practical, expert, and reader-oriented.
+10. Constraints:
+   - Avoid keyword stuffing, sensational language, and direct source phrasing.
+   - Do NOT print the reference URL inside the article body.
+   - Do NOT mention that the article was rewritten by AI.
+11. Metadata: Provide 4-6 highly relevant tags. Create a separate seoTitle (max 60 chars) and seoDescription (max 150 chars).
+12. Imagery: Provide 3-5 imageKeywords in English for searching related articles that may contain reusable contextual images.
 
 Return JSON only:
 {
   "title": "blog title",
+  "slug": "blog-slug",
   "summary": "summary",
   "content": "markdown article",
   "tags": "tag1, tag2, tag3",
   "seoTitle": "seo title",
-  "seoDescription": "seo description"
+  "seoDescription": "seo description",
+  "persona": "chosen persona",
+  "imageKeywords": ["keyword1", "keyword2", "keyword3"]
 }`;
 
   const fullText = await callModel(prompt, options);
@@ -218,8 +276,11 @@ Return JSON only:
 
   return {
     ...parsed,
+    slug: sanitizeSlug(parsed.slug || parsed.title),
     seoTitle: parsed.seoTitle || parsed.title,
     seoDescription: parsed.seoDescription || parsed.summary.slice(0, 160),
+    persona: parsed.persona || "일반 독자",
+    imageKeywords: (parsed.imageKeywords ?? []).map((item) => item.trim()).filter(Boolean).slice(0, 5),
   };
 }
 

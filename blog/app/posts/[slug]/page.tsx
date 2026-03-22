@@ -71,8 +71,8 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
         </header>
 
         {post.thumbnail && (
-          <figure className="mb-8">
-            <img src={post.thumbnail} alt={post.title} className="w-full h-auto max-h-[500px] object-cover" />
+          <figure className="mb-8 flex justify-center">
+            <img src={post.thumbnail} alt={post.title} className="w-full max-w-3xl h-auto max-h-[560px] object-contain rounded-lg bg-[var(--nyt-bg-accent)] mx-auto" />
           </figure>
         )}
 
@@ -85,7 +85,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
             prose-p:font-sans prose-p:text-[var(--nyt-gray)] prose-p:leading-[1.8]
             prose-a:text-[var(--nyt-black)] prose-a:underline
             prose-blockquote:border-l-[var(--nyt-black)] prose-blockquote:text-[var(--nyt-gray)]
-            prose-strong:text-[var(--nyt-black)]"
+            prose-strong:text-[var(--nyt-black)] prose-img:rounded-lg prose-img:mx-auto prose-img:w-full prose-img:max-w-3xl prose-img:h-auto prose-img:object-contain prose-img:bg-[var(--nyt-bg-accent)]"
           dangerouslySetInnerHTML={{ __html: contentHtml }}
         />
 

@@ -17,7 +17,15 @@ const ARTICLE_TYPES = [
 ];
 
 const IMAGE_COUNT_OPTIONS = [0, 1, 2, 3, 4];
-const EMPTY_CONTENT = "## 여기에 내용을 작성하세요";
+const PERSONA_OPTIONS = [
+  { value: "auto", label: "자동 선택" },
+  { value: "investor", label: "투자자 관점" },
+  { value: "consumer", label: "소비자 관점" },
+  { value: "operator", label: "실무자 관점" },
+  { value: "policymaker", label: "정책 담당자 관점" },
+  { value: "beginner", label: "초보 독자 관점" },
+];
+const EMPTY_CONTENT = "## Start writing here";
 
 interface DraftPayload {
   category: string;
@@ -30,6 +38,7 @@ interface DraftPayload {
 
 interface GeneratedDraft {
   title: string;
+  slug: string;
   summary: string;
   content: string;
   tags: string;
@@ -39,8 +48,11 @@ interface GeneratedDraft {
   seoTitle: string;
   seoDescription: string;
   provider: "gemini" | "openai";
+  personaMode?: string;
   imageCount: number;
   imageCandidates: string[];
+  imageKeywords?: string[];
+  persona?: string;
 }
 
 export default function AdminPage() {
@@ -58,7 +70,9 @@ export default function AdminPage() {
     articleType: ARTICLE_TYPES[0].value,
     referenceUrl: "",
     aiProvider: "gemini" as "gemini" | "openai",
+    personaMode: "auto",
     imageCount: 1,
+    articleLength: 2200,
     tags: "",
     thumbnail: "",
     published: true,
@@ -67,6 +81,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [draftLoading, setDraftLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [expandedImage, setExpandedImage] = useState("");
 
   useEffect(() => {
     const saved = localStorage.getItem("admin_secret");
@@ -88,8 +103,10 @@ export default function AdminPage() {
       articleType: payload.articleType,
       referenceUrl: payload.referenceUrl,
     }));
-    setMessage("참고 기사 정보를 불러왔습니다. AI 모델을 고른 뒤 초안 생성을 눌러 주세요.");
+    setMessage("참고 기사 정보를 불러왔습니다. 초안 생성을 눌러 이어서 작성하세요.");
   }, []);
+
+  const candidateImages = [...new Set(imageCandidates.map((image) => image.trim()).filter(Boolean))];
 
   const handleAuth = (event: React.FormEvent) => {
     event.preventDefault();
@@ -106,26 +123,32 @@ export default function AdminPage() {
   };
 
   const applyDraft = (draft: GeneratedDraft) => {
+    const nextCandidates = [...new Set((draft.imageCandidates ?? []).map((image) => image.trim()).filter(Boolean))];
+    const nextThumbnail = nextCandidates[0] ?? "";
+
     setForm((current) => ({
       ...current,
       title: draft.title,
-      slug: handleSlug(draft.title),
+      slug: draft.slug || handleSlug(draft.title),
       summary: draft.summary,
       category: draft.category,
       articleType: draft.articleType,
       referenceUrl: draft.referenceUrl,
       aiProvider: draft.provider,
+      personaMode: draft.personaMode ?? current.personaMode,
       imageCount: draft.imageCount,
       tags: draft.tags,
+      thumbnail: nextThumbnail || current.thumbnail,
     }));
     setContent(draft.content);
-    setImageCandidates(draft.imageCandidates ?? []);
-    setMessage("SEO 초안을 생성했습니다. 미리보기로 확인한 뒤 게시하세요.");
+    setImageCandidates(nextCandidates);
+    setExpandedImage("");
+    setMessage("기사 초안을 생성했습니다. 후보 이미지를 눌러 대표 이미지를 바로 바꿀 수 있습니다.");
   };
 
   const handleGenerate = async () => {
     if (!form.category || !form.articleType || !form.referenceUrl) {
-      setMessage("오류: 카테고리, 기사 유형, 참고 URL을 먼저 입력해 주세요.");
+      setMessage("오류: 카테고리, 기사 유형, 참고 URL을 먼저 입력하세요.");
       return;
     }
 
@@ -143,7 +166,9 @@ export default function AdminPage() {
           category: form.category,
           articleType: form.articleType,
           provider: form.aiProvider,
+          personaMode: form.personaMode,
           imageCount: form.imageCount,
+          articleLength: form.articleLength,
           referenceUrl: form.referenceUrl,
           sourceTitle: sourceInfo?.sourceTitle,
           sourceDescription: sourceInfo?.sourceDescription,
@@ -177,9 +202,10 @@ export default function AdminPage() {
     });
 
     if (response.ok) {
-      setMessage("기사가 성공적으로 저장되었습니다.");
+      setMessage("기사를 저장했습니다.");
       setSourceInfo(null);
       setImageCandidates([]);
+      setExpandedImage("");
       setForm({
         title: "",
         slug: "",
@@ -188,7 +214,9 @@ export default function AdminPage() {
         articleType: ARTICLE_TYPES[0].value,
         referenceUrl: "",
         aiProvider: "gemini",
+        personaMode: "auto",
         imageCount: 1,
+        articleLength: 2200,
         tags: "",
         thumbnail: "",
         published: true,
@@ -199,6 +227,7 @@ export default function AdminPage() {
       const data = await response.json();
       setMessage(`오류: ${data.error}`);
     }
+
     setLoading(false);
   };
 
@@ -227,7 +256,7 @@ export default function AdminPage() {
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold text-[var(--nyt-black)]">기사 작성</h1>
-          <p className="text-sm text-[var(--nyt-gray)] mt-1">Gemini 또는 ChatGPT를 선택해 SEO 초안을 만든 뒤 검토하고 게시할 수 있습니다.</p>
+          <p className="text-sm text-[var(--nyt-gray)] mt-1">AI 초안을 만들고 후보 이미지를 바로 대표 이미지로 적용할 수 있습니다.</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -243,7 +272,7 @@ export default function AdminPage() {
             disabled={draftLoading}
             className="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white"
           >
-            {draftLoading ? "생성 중..." : "초안 생성"}
+            {draftLoading ? "생성 중.." : "초안 생성"}
           </button>
         </div>
       </div>
@@ -294,7 +323,9 @@ export default function AdminPage() {
             >
               <option value="">카테고리 선택</option>
               {CATEGORIES.map((category) => (
-                <option key={category.slug} value={category.slug}>{category.name}</option>
+                <option key={category.slug} value={category.slug}>
+                  {category.name}
+                </option>
               ))}
             </select>
           </div>
@@ -307,7 +338,9 @@ export default function AdminPage() {
               className="w-full px-4 py-2 rounded-lg border border-[var(--nyt-border)] bg-[var(--nyt-paper)] text-[var(--nyt-black)] focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             >
               {ARTICLE_TYPES.map((type) => (
-                <option key={type.value} value={type.value}>{type.label}</option>
+                <option key={type.value} value={type.value}>
+                  {type.label}
+                </option>
               ))}
             </select>
           </div>
@@ -323,6 +356,31 @@ export default function AdminPage() {
             </select>
           </div>
           <div>
+            <label className="block text-sm font-medium text-[var(--nyt-gray)] mb-1">페르소나 기법</label>
+            <select
+              value={form.personaMode}
+              onChange={(event) => setForm((current) => ({ ...current, personaMode: event.target.value }))}
+              className="w-full px-4 py-2 rounded-lg border border-[var(--nyt-border)] bg-[var(--nyt-paper)] text-[var(--nyt-black)] focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            >
+              {PERSONA_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-[var(--nyt-gray)] mb-1">글자 수</label>
+            <input
+              type="number"
+              min={500}
+              step={100}
+              value={form.articleLength}
+              onChange={(event) => setForm((current) => ({ ...current, articleLength: Number(event.target.value) || 2200 }))}
+              className="w-full px-4 py-2 rounded-lg border border-[var(--nyt-border)] bg-[var(--nyt-paper)] text-[var(--nyt-black)] focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            />
+          </div>
+          <div>
             <label className="block text-sm font-medium text-[var(--nyt-gray)] mb-1">기사 이미지 수</label>
             <select
               value={String(form.imageCount)}
@@ -330,7 +388,9 @@ export default function AdminPage() {
               className="w-full px-4 py-2 rounded-lg border border-[var(--nyt-border)] bg-[var(--nyt-paper)] text-[var(--nyt-black)] focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             >
               {IMAGE_COUNT_OPTIONS.map((count) => (
-                <option key={count} value={count}>{count}장</option>
+                <option key={count} value={count}>
+                  {count}장
+                </option>
               ))}
             </select>
           </div>
@@ -345,17 +405,17 @@ export default function AdminPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-[var(--nyt-gray)] mb-1">태그 (쉼표 구분)</label>
+            <label className="block text-sm font-medium text-[var(--nyt-gray)] mb-1">태그</label>
             <input
               type="text"
               value={form.tags}
               onChange={(event) => setForm((current) => ({ ...current, tags: event.target.value }))}
-              placeholder="네이버, SEO, 트렌드"
+              placeholder="예: 네이버 SEO, 경제, 시장"
               className="w-full px-4 py-2 rounded-lg border border-[var(--nyt-border)] bg-[var(--nyt-paper)] text-[var(--nyt-black)] focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-[var(--nyt-gray)] mb-1">썸네일 URL</label>
+            <label className="block text-sm font-medium text-[var(--nyt-gray)] mb-1">대표 이미지 URL</label>
             <input
               type="url"
               value={form.thumbnail}
@@ -376,13 +436,43 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {imageCandidates.length > 0 && (
-          <div className="rounded-xl border border-[var(--nyt-border)] bg-[var(--nyt-paper)] p-4">
-            <div className="text-xs font-semibold uppercase tracking-wide text-[var(--nyt-light)] mb-3">가져온 이미지 후보</div>
+        {candidateImages.length > 0 && (
+          <div className="rounded-xl border border-[var(--nyt-border)] bg-[var(--nyt-paper)] p-4 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-[var(--nyt-light)]">가져온 이미지 후보</div>
+                <p className="text-xs text-[var(--nyt-gray)] mt-1">중복 이미지는 제거했습니다. 이미지를 클릭하면 대표 이미지가 바로 바뀌고 크게 표시됩니다.</p>
+              </div>
+              {form.imageCount > 0 && form.thumbnail && (
+                <div className="text-xs text-blue-600 font-semibold">대표 이미지 선택됨</div>
+              )}
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {imageCandidates.slice(0, 4).map((image) => (
-                <img key={image} src={image} alt="article candidate" className="w-full h-28 object-cover rounded-lg border border-[var(--nyt-border)]" />
-              ))}
+              {candidateImages.slice(0, 10).map((image) => {
+                const isSelected = form.thumbnail === image;
+                return (
+                  <button
+                    key={image}
+                    type="button"
+                    onClick={() => {
+                      setForm((current) => ({ ...current, thumbnail: image }));
+                      setExpandedImage(image);
+                    }}
+                    disabled={form.imageCount < 1}
+                    className={`rounded-lg border p-2 text-left transition-colors ${isSelected ? "border-blue-600 ring-2 ring-blue-200" : "border-[var(--nyt-border)]"} ${form.imageCount < 1 ? "opacity-50 cursor-not-allowed" : "hover:border-blue-400"}`}
+                  >
+                    <div className="rounded bg-[var(--nyt-bg-accent)] p-2 min-h-[148px] flex items-center justify-center">
+                      <img src={image} alt="article candidate" className="max-w-full max-h-32 h-auto object-contain rounded mx-auto" />
+                    </div>
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <span className="text-[11px] text-[var(--nyt-gray)] truncate">{isSelected ? "현재 대표 이미지" : "이미지 후보"}</span>
+                      <span className={`text-[11px] font-semibold ${isSelected ? "text-blue-600" : "text-[var(--nyt-light)]"}`}>
+                        {isSelected ? "선택됨" : "선택"}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -398,13 +488,36 @@ export default function AdminPage() {
           <div className="rounded-xl border border-[var(--nyt-border)] bg-[var(--nyt-paper)] p-5 space-y-4">
             <div>
               <div className="text-xs font-semibold uppercase tracking-wide text-[var(--nyt-light)]">미리보기</div>
-              <h2 className="text-2xl font-extrabold text-[var(--nyt-black)] mt-2">{form.title || "제목이 여기에 표시됩니다."}</h2>
-              <p className="text-[var(--nyt-gray)] mt-3 leading-7">{form.summary || "요약이 여기에 표시됩니다."}</p>
+              <h2 className="text-2xl font-extrabold text-[var(--nyt-black)] mt-2">{form.title || "제목을 입력하면 여기에 표시됩니다."}</h2>
+              {form.thumbnail && (
+                <div className="mt-4 flex items-center justify-center">
+                  <img
+                    src={form.thumbnail}
+                    alt={form.title || "article thumbnail"}
+                    className="max-w-full max-h-[360px] h-auto object-contain rounded-lg bg-[var(--nyt-bg-accent)] mx-auto"
+                  />
+                </div>
+              )}
+              <p className="text-[var(--nyt-gray)] mt-3 leading-7">{form.summary || "요약을 입력하면 여기에 표시됩니다."}</p>
             </div>
-            <div className="prose max-w-none prose-headings:text-[var(--nyt-black)] prose-p:text-[var(--nyt-gray)] prose-strong:text-[var(--nyt-black)]">
+            <div className="admin-preview-markdown prose max-w-none prose-headings:text-[var(--nyt-black)] prose-p:text-[var(--nyt-gray)] prose-strong:text-[var(--nyt-black)]" data-color-mode="light">
               <MarkdownPreview source={content} />
             </div>
           </div>
+        )}
+
+        {expandedImage && (
+          <button
+            type="button"
+            onClick={() => setExpandedImage("")}
+            className="fixed inset-0 z-50 bg-black/70 p-6 flex items-center justify-center"
+          >
+            <img
+              src={expandedImage}
+              alt="expanded article candidate"
+              className="max-w-[90vw] max-h-[90vh] h-auto object-contain rounded-xl bg-white p-2 mx-auto"
+            />
+          </button>
         )}
 
         <div className="flex items-center gap-3">
@@ -422,7 +535,7 @@ export default function AdminPage() {
             disabled={loading || draftLoading}
             className="ml-auto px-8 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium rounded-lg transition-colors"
           >
-            {loading ? "게시 중..." : "기사 게시"}
+            {loading ? "게시 중.." : "기사 게시"}
           </button>
         </div>
       </form>
