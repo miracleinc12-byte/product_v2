@@ -4,6 +4,7 @@ import { fetchNews, CATEGORY_MAP } from "@/lib/news-fetcher";
 import { fetchGoogleTrends, matchTrendToCategory, type TrendingKeyword } from "@/lib/trending-fetcher";
 import { generateArticle, insertImages, type GeneratedPost } from "@/lib/ai-writer";
 import { fetchBodyImages } from "@/lib/image-fetcher";
+import { fetchArticleAssets } from "@/lib/article-extractor";
 import type { NewsArticle } from "@/lib/news-fetcher";
 
 export interface GenerateSettings {
@@ -11,6 +12,7 @@ export interface GenerateSettings {
   newsKey?: string;
   unsplashKey?: string;
   openAiKey?: string;
+  falKey?: string;
   articleLength?: number;
   triggerType?: "manual" | "cron";
   publishMode?: "auto" | "draft";
@@ -314,39 +316,70 @@ export async function generateForCategory(
         continue;
       }
 
-      onProgress({ step: "Collecting images and preparing draft...", sourceArticleId, jobId: job.id });
+      onProgress({ step: "Collecting images with AI intelligence...", sourceArticleId, jobId: job.id });
 
-      let thumbnailUrl = article.urlToImage ?? null;
-      let bodyImages = collectTopicImages(candidateArticles, thumbnailUrl).slice(0, 3);
+      // 1. Extract images directly from the source article URL (filtering out news logos)
+      const sourceAssets = await fetchArticleAssets(article.url, generated.title);
+      const extractedImages = sourceAssets.images.map(img => img.url);
 
-      // Generate a high-quality DALL-E image if key is provided and we want a unique cover
-      if (settings.openAiKey) {
-        onProgress({ step: "Generating DALL-E image for thumbnail...", jobId: job.id });
+      let thumbnailUrl: string | null = null;
+      let imgSource = "extracted";
+
+      // 2. Generate a high-quality AI image using Fal.ai (Flux) or DALL-E 3
+      if (settings.falKey || settings.openAiKey) {
+        onProgress({ step: "Analyzing content to generate matching image prompt...", jobId: job.id });
         const { fetchImage } = await import('@/lib/image-fetcher');
-        const dalleImage = await fetchImage(generated.tags.split(',')[0] ?? "News", generated.title, {
-          openAiKey: settings.openAiKey,
-          unsplashKey: settings.unsplashKey
-        });
         
-        if (dalleImage) {
-          // If we successfully generated a DALL-E image, make it the main thumbnail
-          // and push the original news thumbnail down to the body images.
-          if (thumbnailUrl) {
-            bodyImages.unshift(thumbnailUrl);
+        const imageResult = await fetchImage(
+          generated.imageKeywords?.[0] || generated.tags.split(',')[0] || "News", 
+          generated.title, 
+          {
+            falKey: settings.falKey,
+            openAiKey: settings.openAiKey,
+            geminiKey: settings.geminiKey,
+            content: generated.content,
+            useAi: true
           }
-          thumbnailUrl = dalleImage;
+        );
+        
+        if (imageResult.url) {
+          thumbnailUrl = imageResult.url;
+          imgSource = imageResult.source;
+          onProgress({ 
+            step: `Image generated via ${imgSource}`, 
+            prompt: imageResult.prompt,
+            jobId: job.id 
+          });
         }
       }
 
-      if (bodyImages.length < 2 && settings.unsplashKey) {
+      // Fallback to extracted or news image if AI failed
+      if (!thumbnailUrl) {
+        thumbnailUrl = extractedImages[0] || article.urlToImage || null;
+      }
+      
+      // Combine other extracted images for the body, excluding the thumbnail
+      let bodyImages = [...new Set(extractedImages)].filter(url => url !== thumbnailUrl).slice(0, 3);
+
+      // Final search fallback for body images if needed
+      if (bodyImages.length < 2) {
+        onProgress({ step: "Fetching highly relevant body images via search...", jobId: job.id });
         const { fetchBodyImages } = await import('@/lib/image-fetcher');
-        const unsplashImages = await fetchBodyImages(
-          generated.tags,
+        
+        // Use more specific keywords for body image search
+        const bodySearchQuery = generated.imageKeywords?.slice(0, 3).join(", ") || generated.tags;
+        
+        const additionalImages = (await fetchBodyImages(
+          bodySearchQuery,
           generated.title,
-          settings.unsplashKey,
-          2 - bodyImages.length
-        );
-        bodyImages = [...bodyImages, ...unsplashImages];
+          { 
+            unsplashKey: settings.unsplashKey,
+            naverClientId: process.env.NAVER_CLIENT_ID,
+            naverClientSecret: process.env.NAVER_CLIENT_SECRET
+          },
+          3 - bodyImages.length
+        )).filter(url => url !== thumbnailUrl); // Avoid duplicating the main image
+        bodyImages = [...new Set([...bodyImages, ...additionalImages])];
       }
       bodyImages = bodyImages.slice(0, 3);
 

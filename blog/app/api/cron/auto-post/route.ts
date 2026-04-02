@@ -12,6 +12,7 @@ export async function POST(req: NextRequest) {
     "NEWS_API_KEY",
     "UNSPLASH_ACCESS_KEY",
     "OPENAI_API_KEY",
+    "FAL_KEY",
     "ARTICLE_LENGTH",
   ]);
 
@@ -35,6 +36,7 @@ export async function POST(req: NextRequest) {
     newsKey: settings.NEWS_API_KEY,
     unsplashKey: settings.UNSPLASH_ACCESS_KEY,
     openAiKey: settings.OPENAI_API_KEY,
+    falKey: settings.FAL_KEY,
     articleLength,
     triggerType: isCronCall ? ("cron" as const) : ("manual" as const),
   };

@@ -72,7 +72,7 @@ export default async function Home() {
                     {post.title}
                   </h3>
                 </Link>
-                <p className="font-sans text-[13px] text-[var(--nyt-gray)] leading-relaxed line-clamp-2">
+                <p className="font-sans text-[13px] text-[var(--nyt-black)] leading-relaxed line-clamp-2 font-medium">
                   {post.summary}
                 </p>
               </article>

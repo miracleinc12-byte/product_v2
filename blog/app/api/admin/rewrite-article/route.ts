@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSettings } from "@/lib/settings";
 import { fetchNaverNewsArticles, type NaverNewsItem } from "@/lib/naver-api";
 import { insertImages, rewriteArticleForSeo } from "@/lib/ai-writer";
+import { fetchArticleAssets, scoreImageCandidate } from "@/lib/article-extractor";
 
 interface ArticleImageCandidate {
   url: string;
@@ -16,19 +17,6 @@ function checkAuth(req: NextRequest): boolean {
   return secret === adminSecret || secret === "admin1234";
 }
 
-function stripHtml(html: string) {
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&amp;/g, "&")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 function decodeHtml(value: string) {
   return value
     .replace(/<[^>]*>/g, "")
@@ -38,99 +26,6 @@ function decodeHtml(value: string) {
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .trim();
-}
-
-function toAbsoluteUrl(src: string, baseUrl: string) {
-  try {
-    return new URL(src, baseUrl).toString();
-  } catch {
-    return src;
-  }
-}
-
-function parseNumber(value?: string) {
-  if (!value) return undefined;
-  const numeric = Number.parseInt(value.replace(/[^0-9]/g, ""), 10);
-  return Number.isFinite(numeric) ? numeric : undefined;
-}
-
-function scoreImageCandidate(image: ArticleImageCandidate) {
-  const width = image.width ?? 0;
-  const height = image.height ?? 0;
-  const aspect = width && height ? width / height : 0;
-
-  if (width && width < 320) return -100;
-  if (height && height < 180) return -100;
-  if (aspect && (aspect < 0.7 || aspect > 2.4)) return -40;
-
-  let score = 0;
-  if (width >= 1200) score += 25;
-  else if (width >= 800) score += 18;
-  else if (width >= 480) score += 10;
-
-  if (height >= 630) score += 20;
-  else if (height >= 400) score += 12;
-  else if (height >= 240) score += 6;
-
-  if (aspect >= 1.1 && aspect <= 1.9) score += 18;
-  else if (aspect >= 0.9 && aspect <= 2.1) score += 8;
-
-  if (/(logo|icon|sprite|avatar|profile|banner|ads?|thumb|thumbnail)/i.test(image.url)) score -= 80;
-  return score;
-}
-
-function extractArticleImages(html: string, baseUrl: string) {
-  const imageMatches = [...html.matchAll(/<img[^>]*?(?:src|data-src)=["']([^"']+)["'][^>]*>/gi)];
-  const images: ArticleImageCandidate[] = [];
-  const seen = new Set<string>();
-
-  for (const match of imageMatches) {
-    const tag = match[0];
-    const rawSrc = match[1];
-    const url = toAbsoluteUrl(rawSrc, baseUrl);
-    if (!/^https?:\/\//i.test(url) || seen.has(url)) continue;
-    if (/(logo|icon|sprite|avatar|profile|banner|ads?|googleusercontent|doubleclick)/i.test(url)) continue;
-
-    const width = parseNumber(tag.match(/\bwidth=["']?([^"'\s>]+)/i)?.[1]);
-    const height = parseNumber(tag.match(/\bheight=["']?([^"'\s>]+)/i)?.[1]);
-    const alt = decodeHtml(tag.match(/\balt=["']([^"']*)["']/i)?.[1] ?? "");
-    const image = { url, width, height, alt };
-    if (scoreImageCandidate(image) < 0) continue;
-
-    seen.add(url);
-    images.push(image);
-  }
-
-  const ogImage = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["'][^>]*>/i)?.[1];
-  if (ogImage) {
-    const url = toAbsoluteUrl(ogImage, baseUrl);
-    if (!seen.has(url) && /^https?:\/\//i.test(url)) {
-      images.unshift({ url });
-    }
-  }
-
-  return images.sort((a, b) => scoreImageCandidate(b) - scoreImageCandidate(a)).slice(0, 8);
-}
-
-async function fetchArticleAssets(url?: string) {
-  if (!url) return { content: "", images: [] as ArticleImageCandidate[] };
-  try {
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36",
-      },
-      cache: "no-store",
-    });
-
-    if (!response.ok) return { content: "", images: [] as ArticleImageCandidate[] };
-    const html = await response.text();
-    return {
-      content: stripHtml(html).slice(0, 6000),
-      images: extractArticleImages(html, url),
-    };
-  } catch {
-    return { content: "", images: [] as ArticleImageCandidate[] };
-  }
 }
 
 function uniqueStrings(values: string[]) {
@@ -235,6 +130,7 @@ async function fetchRelatedArticleImages(params: {
     .slice(0, limit)
     .map((item) => item.url);
 }
+
 export async function POST(req: NextRequest) {
   if (!checkAuth(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

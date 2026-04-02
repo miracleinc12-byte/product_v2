@@ -23,6 +23,8 @@ export async function POST(req: NextRequest) {
         "GEMINI_API_KEY",
         "NEWS_API_KEY",
         "UNSPLASH_ACCESS_KEY",
+        "OPENAI_API_KEY",
+        "FAL_KEY",
         "ARTICLE_LENGTH",
       ]);
       const articleLength = Number.parseInt(settings.ARTICLE_LENGTH, 10) || 2000;
@@ -31,6 +33,8 @@ export async function POST(req: NextRequest) {
         geminiKey: settings.GEMINI_API_KEY,
         newsKey: settings.NEWS_API_KEY,
         unsplashKey: settings.UNSPLASH_ACCESS_KEY,
+        openAiKey: settings.OPENAI_API_KEY,
+        falKey: settings.FAL_KEY,
         articleLength,
         triggerType: "manual" as const,
       };

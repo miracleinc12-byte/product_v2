@@ -32,9 +32,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           strategy="afterInteractive"
         />
       </head>
-      <body className="min-h-screen">
+      <body className="min-h-screen bg-[var(--nyt-bg)] text-[var(--nyt-black)] transition-colors duration-300">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <header className="bg-[var(--nyt-bg)]">
+          <header className="bg-[var(--nyt-bg)] border-b border-[var(--nyt-border)]">
             {/* 상단 유틸 바 */}
             <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between text-xs text-[var(--nyt-light)]">
               <div className="flex items-center gap-4">

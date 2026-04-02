@@ -39,8 +39,8 @@ export default function PostCard({ post, variant = "standard" }: Props) {
             {post.title}
           </h2>
         </Link>
-        <p className="font-sans text-base text-[var(--nyt-gray)] leading-relaxed mb-2 line-clamp-3">{post.summary}</p>
-        <time className="text-xs font-sans text-[var(--nyt-light)]">{formatDate(post.createdAt)}</time>
+        <p className="font-sans text-base text-[var(--nyt-black)] leading-relaxed mb-2 line-clamp-3 font-medium">{post.summary}</p>
+        <time className="text-xs font-sans text-[var(--nyt-light)] font-bold">{formatDate(post.createdAt)}</time>
       </article>
     );
   }
@@ -68,8 +68,8 @@ export default function PostCard({ post, variant = "standard" }: Props) {
             {post.title}
           </h3>
         </Link>
-        <p className="font-sans text-sm text-[var(--nyt-gray)] leading-relaxed line-clamp-2 mb-2">{post.summary}</p>
-        <time className="text-[11px] font-sans text-[var(--nyt-light)]">{formatDate(post.createdAt)}</time>
+        <p className="font-sans text-sm text-[var(--nyt-black)] leading-relaxed line-clamp-2 mb-2">{post.summary}</p>
+        <time className="text-[11px] font-sans text-[var(--nyt-light)] font-bold">{formatDate(post.createdAt)}</time>
       </article>
     );
   }
@@ -88,7 +88,7 @@ export default function PostCard({ post, variant = "standard" }: Props) {
             {post.title}
           </h3>
         </Link>
-        <p className="font-sans text-sm text-[var(--nyt-light)] line-clamp-1 mt-1">{post.summary}</p>
+        <p className="font-sans text-sm text-[var(--nyt-black)] line-clamp-1 mt-1 font-medium">{post.summary}</p>
       </article>
     );
   }
@@ -112,7 +112,7 @@ export default function PostCard({ post, variant = "standard" }: Props) {
             {post.title}
           </h3>
         </Link>
-        <time className="text-[10px] font-sans text-[var(--nyt-light)] mt-1 block">{formatDate(post.createdAt)}</time>
+        <time className="text-[10px] font-sans text-[var(--nyt-light)] mt-1 block font-bold">{formatDate(post.createdAt)}</time>
       </div>
     </article>
   );

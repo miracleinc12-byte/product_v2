@@ -152,10 +152,17 @@ export default function AdminGeneratePage() {
                   </span>
                 )}
                 {entry.type === "progress" && (
-                  <span className="text-[var(--nyt-gray)]">
-                    &nbsp;&nbsp;↳ {entry.step}
-                    {entry.source && <span className="text-[var(--nyt-gray)]"> ({entry.source})</span>}
-                  </span>
+                  <div className="flex flex-col ml-4 border-l-2 border-[var(--nyt-border)] pl-2 my-1">
+                    <span className="text-[var(--nyt-gray)]">
+                      ↳ {entry.step}
+                      {entry.source && <span className="font-bold text-blue-600"> [{entry.source}]</span>}
+                    </span>
+                    {(entry as any).prompt && (
+                      <div className="mt-1 p-2 bg-blue-50 dark:bg-blue-900/20 text-[10px] italic text-blue-800 dark:text-blue-300 rounded border border-blue-100 dark:border-blue-800">
+                        <strong>AI Prompt:</strong> {(entry as any).prompt}
+                      </div>
+                    )}
+                  </div>
                 )}
                 {entry.type === "category_done" && (
                   <span className={getStatusColor(entry)}>

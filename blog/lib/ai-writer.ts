@@ -5,6 +5,7 @@ export interface GeneratedPost {
   summary: string;
   content: string;
   tags: string;
+  imageKeywords?: string[];
 }
 
 export interface SeoRewriteInput {
@@ -183,19 +184,24 @@ ${source}
 5. Include context, analysis, and practical implications.
 6. Do not include the source URL or a [Source] section.
 7. Return tags as 3-5 comma separated keywords.
+8. Imagery: Provide 3-5 imageKeywords in English for searching related images.
 
 Return JSON only:
 {
   "title": "headline",
   "summary": "summary",
   "content": "markdown body",
-  "tags": "tag1, tag2, tag3"
+  "tags": "tag1, tag2, tag3",
+  "imageKeywords": ["keyword1", "keyword2", "keyword3"]
 }`;
 
   const fullText = await callGemini(prompt, key);
   const parsed = extractJson<GeneratedPost>(fullText);
   if (!parsed.title || !parsed.content) throw new Error("Gemini response is missing required fields");
-  return parsed;
+  return {
+    ...parsed,
+    imageKeywords: (parsed.imageKeywords ?? []).map(k => k.trim()).filter(Boolean).slice(0, 5)
+  };
 }
 
 export async function rewriteArticleForSeo(input: SeoRewriteInput, options: SeoRewriteOptions): Promise<SeoRewriteResult> {
@@ -285,33 +291,68 @@ Return JSON only:
 }
 
 export function insertImages(content: string, images: string[]): string {
-  if (!images.length) return content;
+  if (!images.length || !content.trim()) return content;
 
   const lines = content.split("\n");
   const headingIndices: number[] = [];
-  for (let index = 0; index < lines.length; index++) {
-    if (/^#{2,3}\s/.test(lines[index]) && index > 0) {
-      headingIndices.push(index);
+  
+  // Find all H2 and H3 headings
+  for (let i = 0; i < lines.length; i++) {
+    if (/^#{2,3}\s/.test(lines[i])) {
+      headingIndices.push(i);
     }
   }
 
-  const insertPoints: number[] = [];
-  if (headingIndices.length >= 2) {
-    const step = Math.floor(headingIndices.length / Math.min(images.length, headingIndices.length));
-    for (let index = 0; index < Math.min(images.length, headingIndices.length); index++) {
-      insertPoints.push(headingIndices[Math.min(index * step, headingIndices.length - 1)]);
+  const insertPoints = new Set<number>();
+  const targetCount = Math.min(images.length, 5); // Max 5 images in body
+
+  if (headingIndices.length >= targetCount) {
+    // Start from the 2nd heading to avoid conflict with the main thumbnail at the top
+    const startIndex = 1; 
+    const availableHeadings = headingIndices.slice(startIndex);
+    
+    if (availableHeadings.length > 0) {
+      for (let i = 0; i < Math.min(targetCount, availableHeadings.length); i++) {
+        const idx = Math.floor((i * availableHeadings.length) / targetCount);
+        insertPoints.add(availableHeadings[idx]);
+      }
+    } else {
+      // Fallback if only 1 heading exists
+      insertPoints.add(Math.floor(lines.length * 0.5));
     }
   } else {
-    const totalLines = lines.length;
-    for (let index = 0; index < images.length; index++) {
-      insertPoints.push(Math.floor((totalLines * (index + 1)) / (images.length + 1)));
+    // Not enough headings, use line-based distribution
+    // Avoid the top 30% to prevent duplication with the main thumbnail
+    const startLine = Math.floor(lines.length * 0.3);
+    const endLine = Math.floor(lines.length * 0.9);
+    const range = endLine - startLine;
+
+    if (range > targetCount * 2) {
+      for (let i = 0; i < targetCount; i++) {
+        insertPoints.add(startLine + Math.floor(((i + 0.5) * range) / targetCount));
+      }
+    } else {
+      // Fallback for very short articles
+      insertPoints.add(Math.floor(lines.length / 2));
     }
   }
 
-  insertPoints.sort((a, b) => b - a);
-  for (let index = 0; index < insertPoints.length && index < images.length; index++) {
-    lines.splice(insertPoints[index], 0, `\n![기사 이미지](${images[index]})\n`);
+  // Convert set to sorted array (descending) to avoid index shift issues while splicing
+  const sortedPoints = Array.from(insertPoints).sort((a, b) => b - a);
+  
+  // Map images to points. Since we sorted points DESC, we should pick images carefully.
+  // Actually, we can just use the index from the targetCount loop.
+  const finalImages = images.slice(0, targetCount);
+  
+  for (let i = 0; i < sortedPoints.length; i++) {
+    // Use the corresponding image for this point (reverse mapping because points are DESC)
+    const imgIndex = sortedPoints.length - 1 - i;
+    const imgUrl = finalImages[imgIndex];
+    if (imgUrl) {
+      lines.splice(sortedPoints[i], 0, `\n![기사 이미지](${imgUrl})\n`);
+    }
   }
 
-  return lines.join("\n");
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n");
 }
+

@@ -43,12 +43,12 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   });
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-0">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
       <ViewCounter slug={post.slug} />
       {/* 본문 */}
-      <article className="lg:col-span-8 lg:pr-8 lg:nyt-divider-v">
+      <article className="lg:col-span-8 bg-[var(--nyt-paper)] p-6 md:p-10 rounded-sm shadow-sm border border-[var(--nyt-border)] relative overflow-hidden">
         {/* 브레드크럼 */}
-        <nav className="text-xs font-sans text-[var(--nyt-light)] mb-6">
+        <nav className="text-xs font-sans text-[var(--nyt-light)] mb-8">
           <Link href="/" className="hover:text-[var(--nyt-black)]">홈</Link>
           <span className="mx-2">/</span>
           <Link href={`/categories/${encodeURIComponent(post.category)}`} className="hover:text-[var(--nyt-black)]">
@@ -57,22 +57,22 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
         </nav>
 
         {/* 헤더 */}
-        <header className="mb-8">
-          <span className="text-xs font-sans font-bold uppercase tracking-widest text-[var(--nyt-light)]">
+        <header className="mb-10">
+          <span className="text-xs font-sans font-bold uppercase tracking-widest text-[var(--nyt-light)] border-b border-[var(--nyt-light)] pb-1">
             {post.category}
           </span>
-          <h1 className="font-serif text-3xl md:text-4xl font-black leading-tight mt-2 mb-4 text-[var(--nyt-black)]">
+          <h1 className="font-serif text-3xl md:text-5xl font-black leading-tight mt-6 mb-6 text-[var(--nyt-black)]">
             {post.title}
           </h1>
-          <p className="font-sans text-lg text-[var(--nyt-gray)] leading-relaxed mb-4">{post.summary}</p>
+          <p className="font-sans text-xl text-[var(--nyt-black)] leading-relaxed mb-6 font-medium">{post.summary}</p>
           <div className="flex items-center gap-4 text-xs font-sans text-[var(--nyt-light)] nyt-divider pt-4">
             <time>{formatDate(post.createdAt)}</time>
           </div>
         </header>
 
         {post.thumbnail && (
-          <figure className="mb-8 flex justify-center">
-            <img src={post.thumbnail} alt={post.title} className="w-full max-w-3xl h-auto max-h-[560px] object-contain rounded-lg bg-[var(--nyt-bg-accent)] mx-auto" />
+          <figure className="mb-10 flex justify-center bg-[var(--nyt-bg-accent)] p-2 rounded-sm border border-[var(--nyt-border)]">
+            <img src={post.thumbnail} alt={post.title} className="w-full max-w-3xl h-auto max-h-[600px] object-contain mx-auto" />
           </figure>
         )}
 
@@ -82,7 +82,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
         <div
           className="prose prose-lg dark:prose-invert max-w-none
             prose-headings:font-serif prose-headings:text-[var(--nyt-black)]
-            prose-p:font-sans prose-p:text-[var(--nyt-gray)] prose-p:leading-[1.8]
+            prose-p:font-sans prose-p:text-[var(--nyt-black)] prose-p:leading-[1.8]
             prose-a:text-[var(--nyt-black)] prose-a:underline
             prose-blockquote:border-l-[var(--nyt-black)] prose-blockquote:text-[var(--nyt-gray)]
             prose-strong:text-[var(--nyt-black)] prose-img:rounded-lg prose-img:mx-auto prose-img:w-full prose-img:max-w-3xl prose-img:h-auto prose-img:object-contain prose-img:bg-[var(--nyt-bg-accent)]"
