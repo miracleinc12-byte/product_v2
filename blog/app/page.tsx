@@ -37,7 +37,7 @@ export default async function Home() {
 
   const categoryMap: Record<string, typeof allPosts> = {};
   CATEGORIES.forEach((cat) => {
-    categoryMap[cat.slug] = allPosts.filter((p) => p.category === cat.slug).slice(0, 4);
+    categoryMap[cat.slug] = allPosts.filter((p) => p.category === cat.slug).slice(0, 3);
   });
   const activeCats = CATEGORIES.filter((cat) => (categoryMap[cat.slug]?.length ?? 0) > 0);
 
@@ -136,8 +136,6 @@ export default async function Home() {
       {activeCats.map((cat) => {
         const catPosts = categoryMap[cat.slug];
         if (!catPosts.length) return null;
-        const first = catPosts[0];
-        const catRest = catPosts.slice(1);
 
         return (
           <section key={cat.slug} className="mb-10">
@@ -153,20 +151,15 @@ export default async function Home() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-0">
-              <div className="lg:col-span-8 lg:pr-5">
-                <PostCard post={serialize(first)} variant="standard" />
-              </div>
-              {catRest.length > 0 && (
-                <div className="lg:col-span-4 lg:pl-5 border-l border-[var(--nyt-border)]">
-                  {catRest.map((post, i) => (
-                    <div key={post.id}>
-                      <PostCard post={serialize(post)} variant="compact" />
-                      {i < catRest.length - 1 && <div className="nyt-divider" />}
-                    </div>
-                  ))}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-0">
+              {catPosts.map((post, i) => (
+                <div key={post.id}>
+                  <div className="py-4">
+                    <PostCard post={serialize(post)} variant="standard" />
+                  </div>
+                  {i < catPosts.length - 1 && <div className="nyt-divider lg:hidden" />}
                 </div>
-              )}
+              ))}
             </div>
           </section>
         );

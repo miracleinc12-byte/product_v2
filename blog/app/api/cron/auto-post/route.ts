@@ -14,6 +14,8 @@ export async function POST(req: NextRequest) {
     "OPENAI_API_KEY",
     "FAL_KEY",
     "ARTICLE_LENGTH",
+    "NAVER_CLIENT_ID",
+    "NAVER_CLIENT_SECRET",
   ]);
 
   const adminSecret = req.headers.get("x-admin-secret");
@@ -37,6 +39,8 @@ export async function POST(req: NextRequest) {
     unsplashKey: settings.UNSPLASH_ACCESS_KEY,
     openAiKey: settings.OPENAI_API_KEY,
     falKey: settings.FAL_KEY,
+    naverClientId: settings.NAVER_CLIENT_ID,
+    naverClientSecret: settings.NAVER_CLIENT_SECRET,
     articleLength,
     triggerType: isCronCall ? ("cron" as const) : ("manual" as const),
   };

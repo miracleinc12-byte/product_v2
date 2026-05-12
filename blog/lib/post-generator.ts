@@ -1,10 +1,11 @@
 ﻿import { createHash } from "crypto";
 import { prisma } from "@/lib/prisma";
-import { fetchNews, CATEGORY_MAP } from "@/lib/news-fetcher";
+import { CATEGORY_MAP } from "@/lib/news-fetcher";
 import { fetchGoogleTrends, matchTrendToCategory, type TrendingKeyword } from "@/lib/trending-fetcher";
 import { generateArticle, insertImages, type GeneratedPost } from "@/lib/ai-writer";
 import { fetchBodyImages } from "@/lib/image-fetcher";
 import { fetchArticleAssets } from "@/lib/article-extractor";
+import { fetchLatestCategoryNews } from "@/lib/naver-api";
 import type { NewsArticle } from "@/lib/news-fetcher";
 
 export interface GenerateSettings {
@@ -13,6 +14,8 @@ export interface GenerateSettings {
   unsplashKey?: string;
   openAiKey?: string;
   falKey?: string;
+  naverClientId?: string;
+  naverClientSecret?: string;
   articleLength?: number;
   triggerType?: "manual" | "cron";
   publishMode?: "auto" | "draft";
@@ -227,7 +230,12 @@ export async function generateForCategory(
       });
 
       for (const trend of matchedTrends.slice(0, 5)) {
-        const articles = await fetchNews(category, settings.newsKey, 8, trend.keyword);
+        const articles = await fetchLatestCategoryNews(
+          category, 
+          { clientId: settings.naverClientId!, clientSecret: settings.naverClientSecret! }, 
+          8, 
+          trend.keyword
+        );
         const topicImages = collectTopicImages(articles);
 
         for (const article of articles) {
@@ -245,7 +253,11 @@ export async function generateForCategory(
     if (candidateArticles.length < 3) {
       const catKeyword = CATEGORY_MAP[category]?.keywords ?? category;
       onProgress({ step: `Fallback article search for ${catKeyword}`, jobId: job.id });
-      const fallbackArticles = await fetchNews(category, settings.newsKey, 10);
+      const fallbackArticles = await fetchLatestCategoryNews(
+        category, 
+        { clientId: settings.naverClientId!, clientSecret: settings.naverClientSecret! }, 
+        10
+      );
       const topicImages = collectTopicImages(fallbackArticles);
 
       for (const article of fallbackArticles) {
@@ -326,8 +338,12 @@ export async function generateForCategory(
       let imgSource = "extracted";
 
       // 2. Generate a high-quality AI image using Fal.ai (Flux) or DALL-E 3
-      if (settings.falKey || settings.openAiKey) {
-        onProgress({ step: "Analyzing content to generate matching image prompt...", jobId: job.id });
+      // For Entertainment and Sports, real photos are better than AI-generated ones.
+      const isEntityHeavyCategory = ["문화/연예", "스포츠", "정치"].includes(category);
+      const useAiForThumbnail = (settings.falKey || settings.openAiKey) && !isEntityHeavyCategory;
+
+      if (settings.falKey || settings.openAiKey || settings.naverClientId) {
+        onProgress({ step: "Analyzing content to fetch matching header image...", jobId: job.id });
         const { fetchImage } = await import('@/lib/image-fetcher');
         
         const imageResult = await fetchImage(
@@ -337,8 +353,10 @@ export async function generateForCategory(
             falKey: settings.falKey,
             openAiKey: settings.openAiKey,
             geminiKey: settings.geminiKey,
+            naverClientId: settings.naverClientId,
+            naverClientSecret: settings.naverClientSecret,
             content: generated.content,
-            useAi: true
+            useAi: useAiForThumbnail // Use AI only for non-entity categories
           }
         );
         

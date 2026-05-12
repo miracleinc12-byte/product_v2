@@ -26,6 +26,8 @@ export async function POST(req: NextRequest) {
         "OPENAI_API_KEY",
         "FAL_KEY",
         "ARTICLE_LENGTH",
+        "NAVER_CLIENT_ID",
+        "NAVER_CLIENT_SECRET",
       ]);
       const articleLength = Number.parseInt(settings.ARTICLE_LENGTH, 10) || 2000;
 
@@ -35,6 +37,8 @@ export async function POST(req: NextRequest) {
         unsplashKey: settings.UNSPLASH_ACCESS_KEY,
         openAiKey: settings.OPENAI_API_KEY,
         falKey: settings.FAL_KEY,
+        naverClientId: settings.NAVER_CLIENT_ID,
+        naverClientSecret: settings.NAVER_CLIENT_SECRET,
         articleLength,
         triggerType: "manual" as const,
       };

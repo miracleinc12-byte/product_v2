@@ -93,10 +93,11 @@ export async function generateIntelligentPrompt(title: string, content: string, 
             Create a detailed, high-quality image generation prompt in English for a professional blog header. 
             
             CRITICAL GUIDELINES:
-            1. Style: "Professional editorial news photography". 
-            2. Context: If the title includes a nickname or metaphor (like "Devil" or "Monster" for a criminal), do NOT interpret it literally. Create a realistic scene related to the ACTUAL news context (e.g., a courtroom, police, handcuffs, or a neutral professional setting).
-            3. No text: Do not include any letters, signs, or text in the image.
-            4. Realism: Ensure the result looks like a real-world photograph from a news agency.
+            1. Language: Use ONLY English. NEVER include Korean characters (Hangeul) in the prompt.
+            2. Style: "Professional editorial news photography, Reuters style, award-winning journalism photo". 
+            3. Context: If the title includes a nickname or metaphor (like "Devil" or "Monster"), do NOT interpret it literally. Create a realistic scene related to the ACTUAL news context (e.g., a courtroom, office, city street, or relevant objects).
+            4. STRICT NO TEXT: Do not include any letters, signs, typography, watermarks, or text in the image. The image should be pure visual without any writing.
+            5. Realism: Ensure the result looks like a real-world photograph, NOT a cartoon or digital art.
             
             Title: ${title}
             Summary: ${content.slice(0, 500)}
@@ -218,34 +219,38 @@ export async function fetchImage(
 ): Promise<{ url: string | null; prompt?: string; source: string }> {
   const query = `${keyword} ${title}`.trim();
   
-  // 1. Intelligent AI Generation Flow (Highest Relevance)
+  // 1. Intelligent AI Generation Flow (Used for abstract topics like Economy, Tech)
   if (opts.useAi && opts.geminiKey) {
     const intelligentPrompt = await generateIntelligentPrompt(title, opts.content || "", opts.geminiKey);
     
-    // Try Gemini Imagen 3 first (User's preference)
+    // Try Gemini Imagen 3 first
     const geminiUrl = await generateGeminiImage(intelligentPrompt, opts.geminiKey);
     if (geminiUrl) return { url: geminiUrl, prompt: intelligentPrompt, source: "gemini (Imagen 3)" };
 
-    // Try Fal.ai (Flux) as secondary - better quality/price
+    // Try Fal.ai (Flux)
     if (opts.falKey) {
       const falUrl = await generateFalImage(intelligentPrompt, opts.falKey);
       if (falUrl) return { url: falUrl, prompt: intelligentPrompt, source: "fal-ai (Flux)" };
     }
-    
-    // Fallback to DALL-E 3
-    if (opts.openAiKey) {
-      const dalleUrl = await generateDalleImage(intelligentPrompt, opts.openAiKey);
-      if (dalleUrl) return { url: dalleUrl, prompt: intelligentPrompt, source: "dall-e-3" };
-    }
   }
 
-  // 2. Search-based Flow (Accuracy for facts/people)
+  // 2. Search-based Flow (Used for Celebrities, Sports, Politics or as fallback)
+  // This ensures real photos of people like 'Lee Chan-won' are used.
   if (opts.naverClientId && opts.naverClientSecret) {
-    const naverImgs = await fetchNaverImages(query, {
+    // For specific people, the title alone is often the best search query
+    const searchResults = await fetchNaverImages(title.slice(0, 50), {
       clientId: opts.naverClientId,
       clientSecret: opts.naverClientSecret
     }, 1);
-    if (naverImgs.length) return { url: naverImgs[0], source: "naver-search" };
+    
+    if (searchResults.length) return { url: searchResults[0], source: "naver-search" };
+
+    // Fallback search with keyword
+    const fallbackResults = await fetchNaverImages(query, {
+      clientId: opts.naverClientId,
+      clientSecret: opts.naverClientSecret
+    }, 1);
+    if (fallbackResults.length) return { url: fallbackResults[0], source: "naver-search" };
   }
 
   if (opts.unsplashKey) {
